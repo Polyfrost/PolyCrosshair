@@ -4,6 +4,7 @@ import cc.polyfrost.oneconfig.config.elements.BasicOption
 import cc.polyfrost.oneconfig.utils.InputHandler
 import org.polyfrost.crosshair.PolyCrosshair
 import org.polyfrost.crosshair.config.configlist.Profile
+import org.polyfrost.crosshair.render.CrosshairRenderer
 import java.util.*
 
 @Suppress("UnstableAPIUsage")
@@ -33,7 +34,8 @@ object Drawer : BasicOption(null, null, "", "", "", "", 1) {
             bitSet.set(pixel.index, pixel.state)
         }
         profile.image = bitSet
-        PolyCrosshair.updateTexture()
+
+        CrosshairRenderer.updateTexture()
     }
 
     override fun getHeight() = 254

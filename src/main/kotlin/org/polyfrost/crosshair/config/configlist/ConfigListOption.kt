@@ -7,6 +7,7 @@ import cc.polyfrost.oneconfig.renderer.asset.SVG
 import cc.polyfrost.oneconfig.utils.InputHandler
 import cc.polyfrost.oneconfig.utils.color.ColorPalette
 import cc.polyfrost.oneconfig.utils.dsl.drawHollowRoundedRect
+import org.polyfrost.crosshair.config.ModConfig
 import java.util.*
 
 
@@ -69,6 +70,7 @@ class ConfigListOption<T>(
         planToRemove = configEntry
     }
 
+    fun select(index: Int) = select(configEntryList[index])
     fun select(configEntry: ConfigEntry<T>) {
         configList.selectedProfile = configEntry.config
         configList.onSelected(configEntry.config)

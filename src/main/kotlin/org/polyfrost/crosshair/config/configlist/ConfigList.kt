@@ -14,7 +14,7 @@ abstract class ConfigList<T> : ArrayList<T>() {
     abstract fun onSelected(profile: T)
     open fun postInitOptions(entry: ConfigEntry<T>, options: List<BasicOption>) {}
 
-    fun addOptionTo(config: Config, page: OptionPage, description: String = "", category: String = "General", subcategory: String = ""): BasicOption {
+    fun addOptionTo(config: Config, page: OptionPage, description: String = "", category: String = "General", subcategory: String = ""): ConfigListOption<T> {
         val option = ConfigListOption(this, config, description, category, subcategory)
         ConfigUtils.getSubCategory(page, category, subcategory).options.add(option)
         return option

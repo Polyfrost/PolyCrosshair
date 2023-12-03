@@ -16,8 +16,6 @@ class Pixel(val index: Int) : BasicElement(16, 16, ColorPalette.PRIMARY, true, 0
 
     override fun update(x: Float, y: Float, inputHandler: InputHandler) {
         super.update(x, y, inputHandler)
-
-        currentColor = colorAnimation.getColor(hovered, pressed)
         if (!hovered) return
 
         state = when {
@@ -25,5 +23,6 @@ class Pixel(val index: Int) : BasicElement(16, 16, ColorPalette.PRIMARY, true, 0
             inputHandler.isMouseDown(1) -> false
             else -> return
         }
+        setColorPalette(if (state) ColorPalette.PRIMARY else ColorPalette.SECONDARY)
     }
 }

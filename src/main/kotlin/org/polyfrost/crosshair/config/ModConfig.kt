@@ -17,6 +17,8 @@ object ModConfig : Config(Mod(PolyCrosshair.NAME, ModType.HUD), "${PolyCrosshair
     @CustomOption
     var profiles = ProfileList()
 
+    var selectedIndex = 0
+
     init {
         initialize()
     }
@@ -26,15 +28,16 @@ object ModConfig : Config(Mod(PolyCrosshair.NAME, ModType.HUD), "${PolyCrosshair
         annotation: CustomOption,
         page: OptionPage,
         mod: Mod,
-        migrate: Boolean
+        migrate: Boolean,
     ): BasicOption? {
         ConfigUtils.getSubCategory(page, "General", "").options.add(Drawer)
-        profiles.addOptionTo(this, page, category = "General")
+        profiles.addOptionTo(this, page, category = "General").select(selectedIndex)
         return null
     }
 
     class ProfileList : ConfigList<Profile>() {
         override fun onSelected(profile: Profile) {
+            selectedIndex = indexOf(profile)
             Drawer.load(profile)
         }
 

@@ -6,12 +6,11 @@ import java.util.*
 
 class Profile {
     private var imgBase64: String =
-        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" // 225 zeros | todo: get some preset crosshairs
+        "AAAOjo/v7///HxXvrUfF/i/+B/4D/gA+AA4AAg==" // 225 zeros | todo: get some preset crosshairs
 
     @Exclude
     var image: BitSet = try {
         BitSet.valueOf(Base64.getDecoder().decode(imgBase64))
-
     } catch (e: Exception) {
         BitSet(225)
     }
