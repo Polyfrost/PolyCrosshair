@@ -7,7 +7,8 @@
     "maxShiftBy": 5
   },
   "client": [
-    "GuiIngameAccessor"
+    "GuiIngameAccessor",
+    "GuiIngameMixin"
   ],
   "verbose": true
 }
