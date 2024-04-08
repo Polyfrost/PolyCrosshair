@@ -57,7 +57,7 @@ object CrosshairRenderer {
 
         val scale = UResolution.scaleFactor.toFloat()
         GlStateManager.translate(ModConfig.offsetX / scale, ModConfig.offsetY / scale, 0f)
-        GlStateManager.translate(event.resolution.scaledWidth / 2f, event.resolution.scaledHeight / 2f, 0f)
+        GlStateManager.translate(UResolution.scaledWidth / 2f, UResolution.scaledHeight / 2f, 0f)
         GlStateManager.rotate(ModConfig.rotation.toFloat(), 0f, 0f, 1f)
         GlStateManager.scale(ModConfig.scale / 100f, ModConfig.scale / 100f, 1f)
         GlStateManager.translate(-7.5f, -7.5f, 0f)

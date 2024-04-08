@@ -14,6 +14,8 @@ object ModConfig : Config(Mod(PolyCrosshair.NAME, ModType.HUD), "${PolyCrosshair
     @CustomOption
     var crosshair = HashMap<Int, PixelInfo>()
 
+    var presets = ArrayList<String>() //base64
+
     @Exclude
     var penColor = OneColor(255, 255, 255, 255)
 

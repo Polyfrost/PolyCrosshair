@@ -2,7 +2,6 @@
 
 package org.polyfrost.crosshair.config
 
-import cc.polyfrost.oneconfig.config.core.ConfigUtils
 import cc.polyfrost.oneconfig.config.elements.BasicOption
 import cc.polyfrost.oneconfig.events.EventManager
 import cc.polyfrost.oneconfig.gui.elements.BasicButton
@@ -12,15 +11,14 @@ import cc.polyfrost.oneconfig.renderer.scissor.ScissorHelper
 import cc.polyfrost.oneconfig.utils.*
 import cc.polyfrost.oneconfig.utils.color.ColorPalette
 import cc.polyfrost.oneconfig.utils.dsl.runAsync
-import com.google.gson.*
 import org.polyfrost.crosshair.PolyCrosshair
 import org.polyfrost.crosshair.elements.*
 import org.polyfrost.crosshair.render.CrosshairRenderer
+import org.polyfrost.crosshair.utils.*
+import java.awt.Image
 import java.awt.image.BufferedImage
-import java.io.*
-import java.net.*
 import java.util.*
-import javax.imageio.ImageIO
+import kotlin.collections.HashMap
 
 
 private fun notify(message: String) = Notifications.INSTANCE.send(PolyCrosshair.NAME, message)
@@ -29,9 +27,9 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
 
     val pixels: Array<Pixel> = Array(225) { Pixel(it) }
 
-    private var presets = ArrayList<PresetElement>()
+    var elements = HashMap<String, PresetElement>()
 
-    var removeQueue = ArrayList<PresetElement>()
+    var removeQueue = ArrayList<String>()
 
     var moveQueue = ArrayList<MoveType>()
 
@@ -39,20 +37,13 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
 
     private val saveButton = BasicButton(64, 32, "Save", 2, ColorPalette.PRIMARY)
 
-    private val importButton = BasicButton(64, 32, "Import", 2, ColorPalette.PRIMARY)
+    private val importButton = BasicButton(64, 32, "Import", 2, ColorPalette.SECONDARY)
 
-    private val exportButton = BasicButton(64, 32, "Export", 2, ColorPalette.PRIMARY)
+    private val exportButton = BasicButton(64, 32, "Export", 2, ColorPalette.SECONDARY)
 
     private val colorSelector = ColorSelector()
 
-    private val path = "${ConfigUtils.getProfileDir().absolutePath}/${PolyCrosshair.MODID}/Custom Crosshairs/"
-
-    private val dir = File(path)
-
     init {
-        if (!dir.exists()) {
-            dir.mkdirs()
-        }
         clearButton.setClickAction {
             for (pixel in pixels) {
                 pixel.isToggled = false
@@ -60,40 +51,27 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
         }
         saveButton.setClickAction {
             runAsync {
-                save(saveImage())
+                save(saveFromDrawer())
             }
         }
         exportButton.setClickAction {
             runAsync {
-                saveImage()?.let { export(it.image) }
+                saveFromDrawer()?.let { Utils.copy(it.image) }
             }
 
         }
         importButton.setClickAction {
             runAsync {
-                IOUtils.getStringFromClipboard()?.let {
+                IOUtils.getImageFromClipboard()?.let {
                     notify("Importing crosshair from your clipboard.")
-                    loadImage(ImageIO.read(URL("https://iili.io/$it.png")), true)
+                    loadImage(it.toBufferedImage(), true)
                 }
             }
         }
-        refreshPresets()
         EventManager.INSTANCE.register(this)
     }
 
-    fun refreshPresets() {
-        presets.clear()
-        val list = dir.listFiles() ?: return
-        for (i in list) {
-            val path = i.absolutePath
-            if (isImage(i)) {
-                presets.add(PresetElement(path))
-            }
-        }
-    }
-
     override fun draw(vg: Long, x: Int, y: Int, inputHandler: InputHandler) {
-
         if (moveQueue.isNotEmpty()) {
             var x = 0
             var y = 0
@@ -114,29 +92,36 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
         colorSelector.draw(vg, (x + 270).toFloat(), (y + 126).toFloat(), inputHandler)
         exportButton.draw(vg, (x + 270).toFloat(), y.toFloat(), inputHandler)
 
-        presets.removeAll(removeQueue.toSet())
+        for (i in removeQueue) {
+            ModConfig.presets.remove(i)
+            getElement(i).onRemove()
+            elements.remove(i)
+        }
 
         removeQueue.clear()
 
         val scissor = ScissorHelper.INSTANCE.scissor(vg, (x + 349).toFloat(), y.toFloat(), 644f, 254f)
 
-//        val hovering = scissor.isInScissor(inputHandler.mouseX(), inputHandler.mouseY())
-
-        for (i in 0..<presets.size) {
+        for (i in 0..<ModConfig.presets.size) {
             val posX = i % 4
             val posY = i / 4
-            presets[i].draw(vg, x + 349 + posX * 165f, y + posY * 165f, inputHandler)
+            getElement(ModConfig.presets[i]).draw(vg, x + 349 + posX * 165f, y + posY * 165f, inputHandler)
         }
 
         ScissorHelper.INSTANCE.resetScissor(vg, scissor)
     }
 
-    fun loadFromFile(path: String, save: Boolean) {
-        if (path.isBlank()) return
-        val file = File(path)
-        if (!file.exists() || !file.isFile) return
+    fun Image.toBufferedImage(): BufferedImage {
+        if (this is BufferedImage) {
+            return this
+        }
+        val bufferedImage = BufferedImage(this.getWidth(null), this.getHeight(null), BufferedImage.TYPE_INT_ARGB)
 
-        loadImage(ImageIO.read(file), save)
+        val graphics2D = bufferedImage.createGraphics()
+        graphics2D.drawImage(this, 0, 0, null)
+        graphics2D.dispose()
+
+        return bufferedImage
     }
 
     fun loadImage(image: BufferedImage?, save: Boolean) {
@@ -154,9 +139,12 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
         if (save) save(loadedImage)
     }
 
-    fun saveImage(): OneImage? {
+    fun saveFromDrawer(): OneImage? {
         val image = OneImage(15, 15)
-        if (ModConfig.crosshair.isEmpty()) return null
+        if (ModConfig.crosshair.isEmpty()) {
+            notify("Crosshair cant be empty.")
+            return null
+        }
         for (i in ModConfig.crosshair) {
             val pos = indexToPos(i.key)
             val c = i.value.color
@@ -165,47 +153,15 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
         return image
     }
 
-    fun save(image: OneImage?): File? {
-        image ?: return null
-        val path = path + UUID.randomUUID() + ".png"
-        image.save(path)
-        presets.add(PresetElement(path))
-        return File(path)
-    }
-
-    fun export(image: BufferedImage) {
-        val `object` = upload(image) ?: return
-        val link = `object`["image"].asJsonObject["id_encoded"].asString
-        IOUtils.copyStringToClipboard(link)
-        notify("Crosshair ID has been copied to clipboard.")
-    }
-
-    fun upload(image: BufferedImage): JsonObject? {
-        try {
-            val byteOut = ByteArrayOutputStream()
-            ImageIO.write(image, "png", byteOut)
-            val encoded = Base64.getEncoder().encodeToString(byteOut.toByteArray())
-            byteOut.close()
-            val url = URL("https://freeimage.host/api/1/upload?key=6d207e02198a847aa98d0a2a901485a5&source=$encoded&format=json")
-            val con = url.openConnection() as HttpURLConnection
-            con.requestMethod = "POST"
-            con.doInput = true
-            con.doOutput = true
-            con.connect()
-
-            if (con.responseCode != 200) notify("Failed")
-
-            val rd = BufferedReader(InputStreamReader(con.inputStream))
-            val `object` = JsonParser().parse(rd).asJsonObject
-            rd.close()
-            return `object`
-        } catch (e: Exception) {
-            e.printStackTrace()
-            return null
+    fun save(image: OneImage?) {
+        image ?: return
+        val base64 = Utils.toBase64(image.image)
+        if (ModConfig.presets.contains(base64)) {
+            notify("Duplicated crosshair.")
+            return
         }
+        ModConfig.presets.add(base64)
     }
-
-    fun isImage(file: File): Boolean = file.name.endsWith(".png")
 
     fun move(x: Int, y: Int) {
         val newPositions = HashMap<Pos, Int>()
@@ -225,6 +181,11 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
         }
     }
 
+    fun getElement(base64: String): PresetElement {
+        elements[base64] ?: elements.put(base64, PresetElement(base64))
+        return elements[base64]!!
+    }
+
     fun indexToPos(index: Int): Pos =
         Pos(index % 15, index / 15)
 
@@ -235,8 +196,6 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
         RIGHT(1, 0)
     }
 
-    data class Pos(val x: Int, val y: Int)
-
     override fun finishUpAndClose() {
         CrosshairRenderer.updateTexture()
     }
@@ -244,7 +203,6 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
     override fun getHeight() = 254
 
     override fun keyTyped(key: Char, keyCode: Int) {
-        if (keyCode == UKeyboard.KEY_F5) refreshPresets()
         if (keyCode == UKeyboard.KEY_W) moveQueue.add(MoveType.UP)
         if (keyCode == UKeyboard.KEY_S) moveQueue.add(MoveType.DOWN)
         if (keyCode == UKeyboard.KEY_A) moveQueue.add(MoveType.LEFT)
