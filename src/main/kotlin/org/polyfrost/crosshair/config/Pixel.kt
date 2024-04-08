@@ -10,7 +10,7 @@ class Pixel(val index: Int) : BasicElement(16, 16, ColorPalette.PRIMARY, true, 0
     var color = -1
         set(value) {
             if (value shr 24 == 0) isToggled = false
-            ModConfig.crosshair[index]?.color = value
+            ModConfig.drawer[index]?.color = value
             field = value
         }
 
@@ -32,9 +32,9 @@ class Pixel(val index: Int) : BasicElement(16, 16, ColorPalette.PRIMARY, true, 0
         if (lastToggled != isToggled) {
             lastToggled = isToggled
             if (isToggled) {
-                ModConfig.crosshair[index] = PixelInfo(color)
+                ModConfig.drawer[index] = PixelInfo(color)
             } else {
-                ModConfig.crosshair.remove(index)
+                ModConfig.drawer.remove(index)
             }
         }
         currentColor = if (isToggled) color else if (index % 2 == 0) ColorPalette.SECONDARY.normalColor else ColorPalette.SECONDARY.hoveredColor

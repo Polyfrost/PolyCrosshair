@@ -1,6 +1,8 @@
+@file:Suppress("UnstableAPIUsage")
 package org.polyfrost.crosshair.render
 
 import cc.polyfrost.oneconfig.config.core.OneColor
+import cc.polyfrost.oneconfig.images.OneImage
 import cc.polyfrost.oneconfig.libs.universal.UResolution
 import cc.polyfrost.oneconfig.utils.dsl.mc
 import net.minecraft.client.gui.Gui
@@ -25,13 +27,14 @@ object CrosshairRenderer {
     private val whiteTextureLocation: ResourceLocation =
         mc.textureManager.getDynamicTextureLocation("polycrosshair", whiteTexture)
 
-    fun updateTexture() {
+    fun updateTexture(image: OneImage) {
         for (i in 0 until 225) {
             whiteTexture.textureData[i] = 0x00000000
             texture.textureData[i] = 0x00000000
-            ModConfig.crosshair[i] ?: continue
+            val color = image.image.getRGB(i % 15, i / 15)
+            if (color == 0x00000000) continue
             whiteTexture.textureData[i] = Color(-1).rgb
-            texture.textureData[i] = ModConfig.crosshair[i]!!.color
+            texture.textureData[i] = color
         }
         texture.updateDynamicTexture()
         whiteTexture.updateDynamicTexture()

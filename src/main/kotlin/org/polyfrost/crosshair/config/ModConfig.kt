@@ -11,10 +11,13 @@ import java.lang.reflect.Field
 
 object ModConfig : Config(Mod(PolyCrosshair.NAME, ModType.HUD), "${PolyCrosshair.MODID}/config.json") {
 
-    @CustomOption
-    var crosshair = HashMap<Int, PixelInfo>()
+    @Exclude
+    var drawer = HashMap<Int, PixelInfo>()
 
-    var presets = ArrayList<String>() //base64
+    var currentCrosshair = ""
+
+    @CustomOption
+    var crosshairs = ArrayList<String>()
 
     @Exclude
     var penColor = OneColor(255, 255, 255, 255)
@@ -66,12 +69,6 @@ object ModConfig : Config(Mod(PolyCrosshair.NAME, ModType.HUD), "${PolyCrosshair
 
     init {
         initialize()
-        for (i in 0..224) {
-            Drawer.pixels[i].isToggled = false
-            val crosshair = crosshair[i] ?: continue
-            Drawer.pixels[i].isToggled = true
-            Drawer.pixels[i].color = crosshair.color
-        }
         val options = listOf("hostile", "passive", "player", "hostileColor", "passiveColor", "playerColor")
         for (i in options) {
             hideIf(i) { !dynamicColor }

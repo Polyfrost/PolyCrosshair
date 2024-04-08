@@ -6,6 +6,7 @@ import cc.polyfrost.oneconfig.images.OneImage
 import cc.polyfrost.oneconfig.utils.IOUtils
 import cc.polyfrost.oneconfig.utils.Notifications
 import org.polyfrost.crosshair.PolyCrosshair
+import org.polyfrost.crosshair.config.ModConfig
 import java.awt.Image
 import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream
@@ -17,15 +18,26 @@ private fun notify(message: String) = Notifications.INSTANCE.send(PolyCrosshair.
 
 object Utils {
 
-    fun export(image: BufferedImage, name: String): String {
+    fun export(image: BufferedImage?, name: String): String {
+        image ?: return ""
         val path = PolyCrosshair.path + name + ".png"
         OneImage(image).save(path)
         return path
     }
 
-    fun toBufferedImage(string: String): BufferedImage {
+    fun save(image: OneImage?) {
+        image ?: return
+        val base64 = toBase64(image.image)
+        if (ModConfig.crosshairs.contains(base64)) {
+            notify("Duplicated crosshair.")
+            return
+        }
+        ModConfig.crosshairs.add(base64)
+    }
+
+    fun toBufferedImage(string: String): BufferedImage? {
         val bytes = Base64.getDecoder().decode(string)
-        return ImageIO.read(ByteArrayInputStream(bytes));
+        return ImageIO.read(ByteArrayInputStream(bytes))
     }
 
     fun toBase64(image: BufferedImage): String {
@@ -36,7 +48,8 @@ object Utils {
         return encoded
     }
 
-    fun copy(image: Image) {
+    fun copy(image: Image?) {
+        image ?: return
         IOUtils.copyImageToClipboard(image)
         notify("Crosshair has been copied to clipboard.")
     }

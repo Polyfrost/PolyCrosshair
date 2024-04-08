@@ -1,9 +1,7 @@
 @file:Suppress("UnstableAPIUsage")
-
 package org.polyfrost.crosshair.config
 
 import cc.polyfrost.oneconfig.config.elements.BasicOption
-import cc.polyfrost.oneconfig.events.EventManager
 import cc.polyfrost.oneconfig.gui.elements.BasicButton
 import cc.polyfrost.oneconfig.images.OneImage
 import cc.polyfrost.oneconfig.libs.universal.*
@@ -44,6 +42,11 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
     private val colorSelector = ColorSelector()
 
     init {
+        Utils.toBufferedImage(ModConfig.currentCrosshair)?.let {
+            loadImage(it, false)?.let {
+                CrosshairRenderer.updateTexture(it)
+            }
+        }
         clearButton.setClickAction {
             for (pixel in pixels) {
                 pixel.isToggled = false
@@ -51,7 +54,7 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
         }
         saveButton.setClickAction {
             runAsync {
-                save(saveFromDrawer())
+                Utils.save(saveFromDrawer())
             }
         }
         exportButton.setClickAction {
@@ -68,7 +71,6 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
                 }
             }
         }
-        EventManager.INSTANCE.register(this)
     }
 
     override fun draw(vg: Long, x: Int, y: Int, inputHandler: InputHandler) {
@@ -93,7 +95,7 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
         exportButton.draw(vg, (x + 270).toFloat(), y.toFloat(), inputHandler)
 
         for (i in removeQueue) {
-            ModConfig.presets.remove(i)
+            ModConfig.crosshairs.remove(i)
             getElement(i).onRemove()
             elements.remove(i)
         }
@@ -102,10 +104,10 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
 
         val scissor = ScissorHelper.INSTANCE.scissor(vg, (x + 349).toFloat(), y.toFloat(), 644f, 254f)
 
-        for (i in 0..<ModConfig.presets.size) {
+        for (i in 0..<ModConfig.crosshairs.size) {
             val posX = i % 4
             val posY = i / 4
-            getElement(ModConfig.presets[i]).draw(vg, x + 349 + posX * 165f, y + posY * 165f, inputHandler)
+            getElement(ModConfig.crosshairs[i]).draw(vg, x + 349 + posX * 165f, y + posY * 165f, inputHandler)
         }
 
         ScissorHelper.INSTANCE.resetScissor(vg, scissor)
@@ -124,11 +126,11 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
         return bufferedImage
     }
 
-    fun loadImage(image: BufferedImage?, save: Boolean) {
+    fun loadImage(image: BufferedImage?, save: Boolean): OneImage? {
         val loadedImage = OneImage(image)
         if (loadedImage.width != 15 || loadedImage.height != 15) {
             notify("Image must be 15 x 15.")
-            return
+            return null
         }
         for (i in 0..224) {
             val pos = indexToPos(i)
@@ -136,16 +138,17 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
             pixels[i].isToggled = c shr 24 != 0
             pixels[i].color = c
         }
-        if (save) save(loadedImage)
+        if (save) Utils.save(loadedImage)
+        return loadedImage
     }
 
     fun saveFromDrawer(): OneImage? {
         val image = OneImage(15, 15)
-        if (ModConfig.crosshair.isEmpty()) {
+        if (ModConfig.drawer.isEmpty()) {
             notify("Crosshair cant be empty.")
             return null
         }
-        for (i in ModConfig.crosshair) {
+        for (i in ModConfig.drawer) {
             val pos = indexToPos(i.key)
             val c = i.value.color
             image.setColorAtPos(pos.x, pos.y, c)
@@ -153,19 +156,9 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
         return image
     }
 
-    fun save(image: OneImage?) {
-        image ?: return
-        val base64 = Utils.toBase64(image.image)
-        if (ModConfig.presets.contains(base64)) {
-            notify("Duplicated crosshair.")
-            return
-        }
-        ModConfig.presets.add(base64)
-    }
-
     fun move(x: Int, y: Int) {
         val newPositions = HashMap<Pos, Int>()
-        for (i in ModConfig.crosshair) {
+        for (i in ModConfig.drawer) {
             val pos = indexToPos(i.key)
             val posX = pos.x + x
             val posY = pos.y + y
@@ -197,7 +190,9 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
     }
 
     override fun finishUpAndClose() {
-        CrosshairRenderer.updateTexture()
+        val image = saveFromDrawer() ?: return
+        ModConfig.currentCrosshair = Utils.toBase64(image.image)
+        CrosshairRenderer.updateTexture(image)
     }
 
     override fun getHeight() = 254
