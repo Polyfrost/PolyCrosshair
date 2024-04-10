@@ -7,6 +7,7 @@
     "maxShiftBy": 5
   },
   "client": [
+    "EntityRendererMixin",
     "GuiIngameAccessor",
     "GuiIngameMixin"
   ],

@@ -13,8 +13,11 @@ public class GuiIngameMixin {
     private void check(CallbackInfoReturnable<Boolean> cir) {
         ModConfig cfg = ModConfig.INSTANCE;
         Minecraft mc = Minecraft.getMinecraft();
-        if (!cfg.getShowInThirdPerson() && mc.gameSettings.thirdPersonView != 0) cir.setReturnValue(false);
-        if (cfg.getShowInSpectator() && mc.playerController.isSpectator()) cir.setReturnValue(true);
-        if (cfg.getShowInDebug() && mc.gameSettings.showDebugInfo) cir.setReturnValue(true);
+        if ((!cfg.getShowInGuis() && mc.currentScreen != null) || (!cfg.getShowInThirdPerson() && mc.gameSettings.thirdPersonView != 0)) {
+            cir.setReturnValue(false);
+        }
+        if ((cfg.getShowInSpectator() && mc.playerController.isSpectator()) || (cfg.getShowInDebug() && mc.gameSettings.showDebugInfo)) {
+            cir.setReturnValue(true);
+        }
     }
 }

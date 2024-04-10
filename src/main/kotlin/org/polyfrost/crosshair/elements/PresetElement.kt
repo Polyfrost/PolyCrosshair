@@ -12,11 +12,12 @@ import org.polyfrost.crosshair.utils.Utils
 import java.io.File
 import java.util.UUID
 
-private val remove = SVG("/assets/polycrosshair/minus.svg")
+private val remove = SVG("/assets/polycrosshair/trashcan.svg")
+private val copy = SVG("/assets/polycrosshair/copy.svg")
 
 class PresetElement(val base64: String) : BasicElement(149, 149, ColorPalette.SECONDARY, true) {
-    val removeButton = BasicButton(32, 32, remove, 2, ColorPalette.PRIMARY_DESTRUCTIVE)
-    val copyButton = BasicButton(32, 32, "", 2, ColorPalette.PRIMARY)
+    val removeButton = BasicButton(32, 32, remove, 2, ColorPalette.TERTIARY)
+    val copyButton = BasicButton(32, 32, copy, 2, ColorPalette.TERTIARY)
     val bufferedImage = Utils.toBufferedImage(base64)
     val fileName = UUID.randomUUID().toString()
     val image = Image(Utils.export(bufferedImage, fileName), AssetHelper.DEFAULT_FLAGS or 32)

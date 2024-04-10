@@ -1,35 +1,44 @@
 @file:Suppress("UnstableAPIUsage")
 package org.polyfrost.crosshair.config
 
+import cc.polyfrost.oneconfig.config.core.OneColor
 import cc.polyfrost.oneconfig.config.elements.BasicOption
+import cc.polyfrost.oneconfig.gui.animations.*
 import cc.polyfrost.oneconfig.gui.elements.BasicButton
 import cc.polyfrost.oneconfig.images.OneImage
-import cc.polyfrost.oneconfig.libs.universal.*
+import cc.polyfrost.oneconfig.libs.universal.UKeyboard
 import cc.polyfrost.oneconfig.renderer.scissor.ScissorHelper
 import cc.polyfrost.oneconfig.utils.*
 import cc.polyfrost.oneconfig.utils.color.ColorPalette
-import cc.polyfrost.oneconfig.utils.dsl.runAsync
+import cc.polyfrost.oneconfig.utils.dsl.*
 import org.polyfrost.crosshair.PolyCrosshair
 import org.polyfrost.crosshair.elements.*
 import org.polyfrost.crosshair.render.CrosshairRenderer
 import org.polyfrost.crosshair.utils.*
 import java.awt.Image
 import java.awt.image.BufferedImage
-import java.util.*
-import kotlin.collections.HashMap
+import kotlin.math.ceil
 
 
 private fun notify(message: String) = Notifications.INSTANCE.send(PolyCrosshair.NAME, message)
 
 object Drawer : BasicOption(null, null, "", "", "", "", 2) {
 
-    val pixels: Array<Pixel> = Array(225) { Pixel(it) }
+    val pixels: Array<Pixel> = Array(1024) { Pixel(it) }
 
     var elements = HashMap<String, PresetElement>()
 
     var removeQueue = ArrayList<String>()
 
     var moveQueue = ArrayList<MoveType>()
+
+    private var scroll = 0f
+
+    private var scrollTarget = 0f
+
+    private var scrollAnimation: Animation = DummyAnimation(0f)
+
+//    private val modeSwitch = DualOption("Drawing", "Custom Image")
 
     private val clearButton = BasicButton(64, 32, "Clear", 2, ColorPalette.PRIMARY_DESTRUCTIVE)
 
@@ -48,18 +57,16 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
             }
         }
         clearButton.setClickAction {
-            for (pixel in pixels) {
-                pixel.isToggled = false
-            }
+            reset()
         }
         saveButton.setClickAction {
             runAsync {
-                Utils.save(saveFromDrawer())
+                Utils.save(saveFromDrawer(false))
             }
         }
         exportButton.setClickAction {
             runAsync {
-                saveFromDrawer()?.let { Utils.copy(it.image) }
+                saveFromDrawer(false)?.let { Utils.copy(it.image) }
             }
 
         }
@@ -74,6 +81,10 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
     }
 
     override fun draw(vg: Long, x: Int, y: Int, inputHandler: InputHandler) {
+//        var y = y
+//        modeSwitch.draw(vg, x.toFloat(), y.toFloat(), inputHandler)
+//        if (ModConfig.mode) return
+//        y += 48
         if (moveQueue.isNotEmpty()) {
             var x = 0
             var y = 0
@@ -85,9 +96,17 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
             moveQueue.clear()
         }
 
-        for (pixel in pixels) {
-            pixel.draw(vg, x.toFloat(), y.toFloat(), inputHandler)
+        for (posY in 0 ..< ModConfig.canvaSize) {
+            for (posX in 0 ..< ModConfig.canvaSize) {
+                pixels[Utils.posToIndex(posX, posY)].draw(vg, x.toFloat(), y.toFloat(), inputHandler)
+            }
         }
+
+        if (ModConfig.canvaSize % 2 == 0) {
+            nanoVGHelper.drawLine(vg, (x + 128).toFloat(), (y + 108).toFloat(), (x + 128).toFloat(), (y + 148).toFloat(), 1f, OneColor("703A3AFF").rgb)
+            nanoVGHelper.drawLine(vg, (x + 108).toFloat(), (y + 128).toFloat(), (x + 148).toFloat(), (y + 128).toFloat(), 1f, OneColor("703A3AFF").rgb)
+        }
+
         importButton.draw(vg, (x + 270).toFloat(), (y + 48).toFloat(), inputHandler)
         clearButton.draw(vg, (x + 270).toFloat(), (y + 174).toFloat(), inputHandler)
         saveButton.draw(vg, (x + 270).toFloat(), (y + 222).toFloat(), inputHandler)
@@ -102,12 +121,38 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
 
         removeQueue.clear()
 
-        val scissor = ScissorHelper.INSTANCE.scissor(vg, (x + 349).toFloat(), y.toFloat(), 644f, 254f)
+        val height = (149 + 16) * ceil(ModConfig.crosshairs.size / 4f) - 16
+
+        if (height <= 256) scrollAnimation = DummyAnimation(0f)
+
+        scroll = scrollAnimation.get()
+
+        val scissor = ScissorHelper.INSTANCE.scissor(vg, (x + 349).toFloat(), y.toFloat(), 644f, 256f)
+
+        if (scissor.isInScissor(inputHandler.mouseX(), inputHandler.mouseY())) {
+            inputHandler.unblockDWheel()
+
+            val dWheel = inputHandler.dWheel.toFloat()
+
+            inputHandler.blockDWheel()
+
+            if (dWheel != 0f) {
+                scrollTarget += dWheel
+
+                if (scrollTarget > 0f) scrollTarget = 0f
+                else if (scrollTarget < 256 - height) scrollTarget = (256 - height)
+
+                scrollAnimation = EaseOutQuad(150, scroll, scrollTarget, false)
+            }
+        } else {
+            inputHandler.unblockDWheel()
+            inputHandler.stopBlockingInput()
+        }
 
         for (i in 0..<ModConfig.crosshairs.size) {
             val posX = i % 4
             val posY = i / 4
-            getElement(ModConfig.crosshairs[i]).draw(vg, x + 349 + posX * 165f, y + posY * 165f, inputHandler)
+            getElement(ModConfig.crosshairs[i]).draw(vg, x + 349 + posX * 165f, y + posY * 165f + scroll, inputHandler)
         }
 
         ScissorHelper.INSTANCE.resetScissor(vg, scissor)
@@ -128,47 +173,59 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
 
     fun loadImage(image: BufferedImage?, save: Boolean): OneImage? {
         val loadedImage = OneImage(image)
-        if (loadedImage.width != 15 || loadedImage.height != 15) {
-            notify("Image must be 15 x 15.")
+        if (loadedImage.width != loadedImage.height || loadedImage.width !in 15..32) {
+            notify("Image size isn't supported.")
             return null
         }
-        for (i in 0..224) {
-            val pos = indexToPos(i)
-            val c = loadedImage.image.getRGB(pos.x, pos.y)
-            pixels[i].isToggled = c shr 24 != 0
-            pixels[i].color = c
+        ModConfig.canvaSize = loadedImage.height
+        for (posY in 0 ..< ModConfig.canvaSize) {
+            for (posX in 0 ..< ModConfig.canvaSize) {
+                val c = loadedImage.image.getRGB(posX, posY)
+                pixels[Utils.posToIndex(posX, posY)].isToggled = c shr 24 != 0
+                pixels[Utils.posToIndex(posX, posY)].color = c
+            }
         }
         if (save) Utils.save(loadedImage)
         return loadedImage
     }
 
-    fun saveFromDrawer(): OneImage? {
-        val image = OneImage(15, 15)
-        if (ModConfig.drawer.isEmpty()) {
+    fun saveFromDrawer(close: Boolean): OneImage? {
+        val image = OneImage(ModConfig.canvaSize, ModConfig.canvaSize)
+        if (ModConfig.drawer.isEmpty() && !close) {
             notify("Crosshair cant be empty.")
             return null
         }
         for (i in ModConfig.drawer) {
-            val pos = indexToPos(i.key)
-            val c = i.value.color
+            val pos = Utils.indexToPos(i.key)
+            if (pos.x >= ModConfig.canvaSize || pos.y >= ModConfig.canvaSize) {
+                pixels[i.key].isToggled = false
+                continue
+            }
+            val c = i.value
             image.setColorAtPos(pos.x, pos.y, c)
         }
         return image
     }
 
+    fun reset() {
+        for (pixel in pixels) {
+            pixel.isToggled = false
+        }
+        ModConfig.drawer.clear()
+    }
+
     fun move(x: Int, y: Int) {
         val newPositions = HashMap<Pos, Int>()
         for (i in ModConfig.drawer) {
-            val pos = indexToPos(i.key)
+            val pos = Utils.indexToPos(i.key)
             val posX = pos.x + x
             val posY = pos.y + y
             pixels[i.key].isToggled = false
-            if (posX !in 0..14 || posY !in 0..14) continue
-            newPositions[Pos(posX, posY)] = i.value.color
+            if (posX !in 0 ..< ModConfig.canvaSize || posY !in 0 ..< ModConfig.canvaSize) continue
+            newPositions[Pos(posX, posY)] = i.value
         }
         for (i in newPositions) {
-            val index = i.key.y * 15 + i.key.x
-            if (index !in 0..224) continue
+            val index = i.key.y * 32 + i.key.x
             pixels[index].isToggled = true
             pixels[index].color = i.value
         }
@@ -179,9 +236,6 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
         return elements[base64]!!
     }
 
-    fun indexToPos(index: Int): Pos =
-        Pos(index % 15, index / 15)
-
     enum class MoveType(val x: Int, val y: Int) {
         UP(0, -1),
         DOWN(0, 1),
@@ -190,12 +244,12 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
     }
 
     override fun finishUpAndClose() {
-        val image = saveFromDrawer() ?: return
+        val image = saveFromDrawer(true) ?: return
         ModConfig.currentCrosshair = Utils.toBase64(image.image)
         CrosshairRenderer.updateTexture(image)
     }
 
-    override fun getHeight() = 254
+    override fun getHeight() = 256
 
     override fun keyTyped(key: Char, keyCode: Int) {
         if (keyCode == UKeyboard.KEY_W) moveQueue.add(MoveType.UP)
