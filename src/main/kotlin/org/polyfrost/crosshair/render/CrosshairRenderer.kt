@@ -77,6 +77,7 @@ object CrosshairRenderer {
         if (ModConfig.invertColor) {
             GlStateManager.tryBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, 1, 0)
         }
+        GL11.glColor4f(1f, 1f, 1f, 1f)
         GlStateManager.disableBlend()
         GlStateManager.popMatrix()
     }
