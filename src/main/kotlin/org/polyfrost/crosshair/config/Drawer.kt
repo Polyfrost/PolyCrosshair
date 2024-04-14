@@ -73,7 +73,6 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
         importButton.setClickAction {
             runAsync {
                 IOUtils.getImageFromClipboard()?.let {
-                    notify("Importing crosshair from your clipboard.")
                     loadImage(it.toBufferedImage(), true)
                 }
             }
@@ -185,6 +184,7 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
                 pixels[Utils.posToIndex(posX, posY)].color = c
             }
         }
+        notify("Crosshair imported")
         if (save) Utils.save(loadedImage)
         return loadedImage
     }
@@ -192,7 +192,7 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
     fun saveFromDrawer(close: Boolean): OneImage? {
         val image = OneImage(ModConfig.canvaSize, ModConfig.canvaSize)
         if (ModConfig.drawer.isEmpty() && !close) {
-            notify("Crosshair cant be empty.")
+            notify("Crosshair can't be empty.")
             return null
         }
         for (i in ModConfig.drawer) {

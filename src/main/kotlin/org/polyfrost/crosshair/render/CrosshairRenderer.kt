@@ -41,7 +41,7 @@ object CrosshairRenderer {
 
     @SubscribeEvent
     fun cancel(event: RenderGameOverlayEvent.Pre) {
-        if (event.type != RenderGameOverlayEvent.ElementType.CROSSHAIRS) return
+        if (event.type != RenderGameOverlayEvent.ElementType.CROSSHAIRS || !ModConfig.enabled) return
         event.isCanceled = true
     }
 
@@ -88,7 +88,7 @@ object CrosshairRenderer {
             val entity = mc.pointedEntity ?: return WHITE
             if (dynamicColor) {
                 if (hostile && entity is IMob) return hostileColor
-                if (passive && (entity is EntityAnimal || entity is EntityAmbientCreature || entity is EntityWaterMob)) return passiveColor
+                if (passive && (entity is EntityVillager || entity is EntityAnimal || entity is EntityAmbientCreature || entity is EntityWaterMob)) return passiveColor
                 if (player && entity is EntityPlayer) return playerColor
             }
         }
