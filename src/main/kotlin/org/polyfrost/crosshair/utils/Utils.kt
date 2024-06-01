@@ -5,6 +5,7 @@ package org.polyfrost.crosshair.utils
 import cc.polyfrost.oneconfig.images.OneImage
 import cc.polyfrost.oneconfig.utils.*
 import org.polyfrost.crosshair.PolyCrosshair
+import org.polyfrost.crosshair.config.CrosshairEntry
 import org.polyfrost.crosshair.config.ModConfig
 import java.awt.Image
 import java.awt.image.BufferedImage
@@ -43,11 +44,16 @@ object Utils {
     fun save(image: OneImage?) {
         image ?: return
         val base64 = toBase64(image.image)
-        if (ModConfig.crosshairs.contains(base64)) {
-            notify("Duplicated crosshair.")
-            return
+        ModConfig.newCrosshairs.forEach {
+            if (it.img == base64) {
+                it.loadFrom(ModConfig.newCurrentCrosshair)
+                return
+            }
         }
-        ModConfig.crosshairs.add(base64)
+        val entry = CrosshairEntry()
+        entry.loadFrom(ModConfig.newCurrentCrosshair)
+        entry.img = base64
+        ModConfig.newCrosshairs.add(entry)
     }
 
     fun toBufferedImage(string: String): BufferedImage? {

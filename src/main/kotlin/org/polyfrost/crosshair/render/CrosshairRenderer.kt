@@ -14,7 +14,7 @@ import net.minecraft.entity.player.EntityPlayer
 import net.minecraftforge.client.event.RenderGameOverlayEvent
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
 import org.lwjgl.opengl.GL11
-import org.polyfrost.crosshair.config.ModConfig
+import org.polyfrost.crosshair.config.*
 import org.polyfrost.crosshair.mixin.GuiIngameAccessor
 import java.awt.Color
 
@@ -31,7 +31,8 @@ object CrosshairRenderer {
         whiteTexture = DynamicTexture(size, size)
         for (posY in 0..<size) {
             for (posX in 0..<size) {
-                if (image.image.getRGB(posX, posY) shr 24 == 0) continue
+                val color = image.image.getRGB(posX, posY)
+                if (color shr 24 == 0) continue
                 whiteTexture.textureData[posX + posY * size] = -1
             }
         }
@@ -42,6 +43,7 @@ object CrosshairRenderer {
     @SubscribeEvent
     fun cancel(event: RenderGameOverlayEvent.Pre) {
         if (event.type != RenderGameOverlayEvent.ElementType.CROSSHAIRS || !ModConfig.enabled) return
+        GlStateManager.enableAlpha()
         event.isCanceled = true
     }
 
@@ -53,7 +55,8 @@ object CrosshairRenderer {
         GlStateManager.pushMatrix()
         GlStateManager.tryBlendFuncSeparate(770, 771, 1, 0)
         GlStateManager.enableBlend()
-        if (ModConfig.invertColor) {
+        val renderConfig = ModConfig.renderConfig
+        if (renderConfig.invertColor) {
             GlStateManager.tryBlendFuncSeparate(GL11.GL_ONE_MINUS_DST_COLOR, GL11.GL_ONE_MINUS_SRC_COLOR, 1, 0)
         }
         GlStateManager.enableAlpha()
@@ -61,20 +64,24 @@ object CrosshairRenderer {
         GL11.glColor4f(1f, 1f, 1f, 1f)
 
         mc.textureManager.bindTexture(textureLocation)
-        GlStateManager.translate(ModConfig.offsetX.toFloat(), ModConfig.offsetY.toFloat(), 0f)
+        val mcScale = UResolution.scaleFactor.toFloat()
+        GlStateManager.scale(1 / mcScale, 1 / mcScale, 1f)
+        val crosshair = ModConfig.newCurrentCrosshair
+        GlStateManager.translate(crosshair.offsetX.toFloat(), crosshair.offsetY.toFloat(), 0f)
+        GlStateManager.scale(mcScale, mcScale, 1f)
         GlStateManager.translate(UResolution.scaledWidth / 2f, UResolution.scaledHeight / 2f, 0f)
-        GlStateManager.rotate(ModConfig.rotation.toFloat(), 0f, 0f, 1f)
-        GlStateManager.scale(ModConfig.scale / 100f, ModConfig.scale / 100f, 1f)
+        GlStateManager.rotate(crosshair.rotation.toFloat(), 0f, 0f, 1f)
+        GlStateManager.scale(crosshair.scale / 100f, crosshair.scale / 100f, 1f)
         val size = ModConfig.canvaSize
         GlStateManager.translate(-size / 2f, -size / 2f, 0f)
         Gui.drawModalRectWithCustomSizedTexture(0, 0, 0f, 0f, size, size, size.toFloat(), size.toFloat())
         val c = getColor()
         if (c.toJavaColor() != Color(-1)) {
             mc.textureManager.bindTexture(whiteTextureLocation)
-            GL11.glColor4f(c.red / 255f, c.green / 255f, c.blue / 255f, ModConfig.dynamicOpacity / 100f)
+            GL11.glColor4f(c.red / 255f, c.green / 255f, c.blue / 255f, renderConfig.dynamicOpacity / 100f)
             Gui.drawModalRectWithCustomSizedTexture(0, 0, 0f, 0f, size, size, size.toFloat(), size.toFloat())
         }
-        if (ModConfig.invertColor) {
+        if (renderConfig.invertColor) {
             GlStateManager.tryBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, 1, 0)
         }
         GL11.glColor4f(1f, 1f, 1f, 1f)
@@ -85,8 +92,9 @@ object CrosshairRenderer {
     val WHITE = OneColor(-1)
 
     fun getColor(): OneColor {
-        with(ModConfig) {
+        with(ModConfig.renderConfig) {
             val entity = mc.pointedEntity ?: return WHITE
+            if (entity.isInvisible) return WHITE
             if (dynamicColor) {
                 if (hostile && entity is IMob) return hostileColor
                 if (passive && (entity is EntityVillager || entity is EntityAnimal || entity is EntityAmbientCreature || entity is EntityWaterMob)) return passiveColor

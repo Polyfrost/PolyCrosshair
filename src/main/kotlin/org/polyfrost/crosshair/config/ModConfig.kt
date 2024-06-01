@@ -9,6 +9,7 @@ import cc.polyfrost.oneconfig.config.elements.*
 import org.polyfrost.crosshair.PolyCrosshair
 import org.polyfrost.crosshair.utils.Utils
 import java.lang.reflect.Field
+import java.util.stream.Collectors
 
 object ModConfig : Config(Mod(PolyCrosshair.NAME, ModType.HUD), "${PolyCrosshair.MODID}/config.json") {
 
@@ -22,6 +23,8 @@ object ModConfig : Config(Mod(PolyCrosshair.NAME, ModType.HUD), "${PolyCrosshair
 
     @CustomOption
     var crosshairs = ArrayList<String>()
+
+    var newCrosshairs: ArrayList<CrosshairEntry> = arrayListOf(CrosshairEntry())
 
     var penColor = OneColor(-1)
 
@@ -38,62 +41,25 @@ object ModConfig : Config(Mod(PolyCrosshair.NAME, ModType.HUD), "${PolyCrosshair
     var canvaSize = 15
         get() = field.coerceIn(15, 32)
 
-    @Switch(name = "Dynamic Color (Overlay)")
-    var dynamicColor = false
+    var newCurrentCrosshair = CrosshairEntry()
 
-    @Switch(name = "Invert Color")
-    var invertColor = false
-
-    @Slider(name = "Overlay Opacity", min = 0f, max = 100f)
-    var dynamicOpacity = 100
-
-    @Switch(name = "Hostile")
-    var hostile = false
-
-    @Color(name = "Color")
-    var hostileColor = OneColor(-1)
-
-    @Switch(name = "Passive")
-    var passive = false
-
-    @Color(name = "Color")
-    var passiveColor = OneColor(-1)
-
-    @Switch(name = "Players")
-    var player = false
-
-    @Color(name = "Color")
-    var playerColor = OneColor(-1)
-
-    @Switch(name = "Show in F3 (Debug)")
-    var showInDebug = false
-
-    @Switch(name = "Show in GUIs")
-    var showInGuis = true
-
-    @Switch(name = "Show in Third Person")
-    var showInThirdPerson = true
-
-    @Switch(name = "Show in Spectator Mode")
-    var showInSpectator = false
-
-    @Slider(name = "Rotation", min = -180f, max = 180f)
-    var rotation = 0
-
-    @Slider(name = "Scale %", min = 0f, max = 200f)
-    var scale = 100
-
-    @Slider(name = "X Offset", min = -500f, max = 500f)
-    var offsetX = 0
-
-    @Slider(name = "Y Offset", min = -500f, max = 500f)
-    var offsetY = 0
+    var renderConfig = RenderConfig()
 
     init {
         initialize()
+        this.generateOptionList(newCurrentCrosshair, mod.defaultPage, this.mod, false)
+        this.generateOptionList(renderConfig, mod.defaultPage, this.mod, false)
+        if (currentCrosshair.isNotEmpty()) {
+            newCurrentCrosshair.loadFrom(CrosshairEntry(currentCrosshair))
+            currentCrosshair = ""
+        }
+        if (crosshairs.isNotEmpty()) {
+            newCrosshairs.addAll(crosshairs.stream().map { CrosshairEntry(it) }.collect(Collectors.toList()))
+            crosshairs.clear()
+        }
         val options = listOf("hostile", "passive", "player", "hostileColor", "passiveColor", "playerColor", "dynamicOpacity")
         for (i in options) {
-            hideIf(i) { !dynamicColor }
+            hideIf(i) { !renderConfig.dynamicColor }
         }
         addDependency(options[3], options[0])
         addDependency(options[4], options[1])

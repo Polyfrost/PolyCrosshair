@@ -2,6 +2,7 @@
 package org.polyfrost.crosshair.config
 
 import cc.polyfrost.oneconfig.config.core.OneColor
+import cc.polyfrost.oneconfig.gui.OneConfigGui
 import cc.polyfrost.oneconfig.gui.elements.BasicElement
 import cc.polyfrost.oneconfig.utils.InputHandler
 import cc.polyfrost.oneconfig.utils.color.ColorPalette
@@ -47,7 +48,7 @@ class Pixel(val index: Int) : BasicElement(16, 16, ColorPalette.PRIMARY, true, 0
             ColorPalette.SECONDARY.hoveredColor
         }
         hovered = inputHandler.isAreaHovered(x - hitBoxX, y - hitBoxY, (width + hitBoxX).toFloat(), (height + hitBoxY).toFloat())
-        if (hovered) {
+        if (hovered && OneConfigGui.INSTANCE.currentColorSelector == null) {
             if (inputHandler.isMouseDown) {
                 doMirror(true, ModConfig.penColor.rgb)
             }
