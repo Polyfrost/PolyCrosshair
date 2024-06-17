@@ -1,16 +1,16 @@
-# OneConfigExampleMod
+<img align="right" src="src/main/resources/polycrosshair.svg" alt="PolyCrosshair Icon"/>
 
-![Powered by OneConfig](https://polyfrost.org/img/cozy_vector.svg)
-![Compact Powered by OneConfig](https://polyfrost.org/img/compact_vector.svg)
-![Minimal Powered by OneConfig](https://polyfrost.org/img/cozy-minimal_vector.svg)
-![Minimal Compact Powered by OneConfig](https://polyfrost.org/img/compact-minimal_vector.svg)
+# PolyCrosshair
 
-Example mod implementing OneConfig.
+![Compact Powered by OneConfig](https://polyfrost.org/img/compact_vector.svg)  ![Dev Workflow Status](https://img.shields.io/github/v/release/Polyfrost/PolyCrosshair.svg?style=for-the-badge&color=1452cc&label=release)
 
-## How to use
+A crosshair modification mod
 
-- Copy the template either by using GitHub's "Use this template" feature or downloading the repo manually.
-- **Remove the license named "LICENSE-TEMPLATE" and choose a new one.**
-- Refactor the template (specifically, the modid, version and name in the gradle.properties and most of the class names)
-  to a different name.
-- Have fun modding! :D
+## Features
+
+- 
+
+## Gallery
+
+![settings-page.png](images/settings-page.png)
+
