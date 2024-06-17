@@ -7,8 +7,8 @@ import cc.polyfrost.oneconfig.gui.elements.ColorSelector
 import cc.polyfrost.oneconfig.internal.assets.Images
 import cc.polyfrost.oneconfig.renderer.NanoVGHelper
 import cc.polyfrost.oneconfig.utils.InputHandler
+import cc.polyfrost.oneconfig.utils.dsl.renderTick
 import org.polyfrost.crosshair.config.ModConfig
-import org.polyfrost.crosshair.utils.RenderTickDelay
 import java.awt.Color
 
 class ColorSelector : BasicElement(64, 32, false) {
@@ -28,11 +28,12 @@ class ColorSelector : BasicElement(64, 32, false) {
         nanoVGHelper.drawRoundedRect(vg, x + 5, y + 4, 56f, 24f, color.rgb, 8f)
         if (element.isClicked && !open) {
             val finalColor = color
-            RenderTickDelay({
+            renderTick(1) {
                 open = true
-                colorSelector = ColorSelector(finalColor, inputHandler.mouseX(), inputHandler.mouseY(), true, inputHandler)
+                colorSelector =
+                    ColorSelector(finalColor, inputHandler.mouseX(), inputHandler.mouseY(), true, inputHandler)
                 OneConfigGui.INSTANCE.initColorSelector(colorSelector)
-            }, 1)
+            }
         }
         if (OneConfigGui.INSTANCE.currentColorSelector !== colorSelector) open = false
         else if (open) color = (OneConfigGui.INSTANCE.color)

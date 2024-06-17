@@ -4,11 +4,11 @@
     "name": "${name}",
     "description": "",
     "version": "${version}",
-    "mcversion": "1.8.9",
+    "mcversion": "${mcVersionStr}",
     "url": "",
     "updateUrl": "",
     "authorList": [
-      "Your Name"
+      "Polyfrost"
     ],
     "credits": "",
     "logoFile": "",
