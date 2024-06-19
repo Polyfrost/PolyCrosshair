@@ -8,7 +8,12 @@ A crosshair modification mod
 
 ## Features
 
-- 
+- Colorful Canvas
+- Invert Color
+- Dynamic Color
+- Rotation
+- Profile System
+- Import / Export
 
 ## Gallery
 
