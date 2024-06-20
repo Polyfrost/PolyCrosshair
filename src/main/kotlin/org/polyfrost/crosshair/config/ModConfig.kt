@@ -13,7 +13,7 @@ import org.polyfrost.crosshair.utils.Utils
 import java.lang.reflect.Field
 import java.util.stream.Collectors
 
-object ModConfig : Config(Mod(PolyCrosshair.NAME, ModType.HUD), "${PolyCrosshair.MODID}/config.json") {
+object ModConfig : Config(Mod(PolyCrosshair.NAME, ModType.HUD, "/${PolyCrosshair.MODID}.svg"), "${PolyCrosshair.MODID}/config.json") {
 
     @Exclude
     var mode = false
