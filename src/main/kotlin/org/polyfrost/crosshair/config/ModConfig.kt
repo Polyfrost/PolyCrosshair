@@ -87,6 +87,10 @@ object ModConfig : Config(Mod(PolyCrosshair.NAME, ModType.HUD), "${PolyCrosshair
                     renderConfig.showInThirdPerson = false
                     didAnything = true
                 }
+                if (OldPatcherConfig.removeInvertFromCrosshair) {
+                    renderConfig.invertColor = false
+                    didAnything = true
+                }
                 renderConfig.didPatcherMigration = true
                 save()
                 if (didAnything) {
