@@ -90,7 +90,7 @@ object ModConfig : Config(Mod(PolyCrosshair.NAME, ModType.HUD), "${PolyCrosshair
                 renderConfig.didPatcherMigration = true
                 save()
                 if (didAnything) {
-                    Notifications.INSTANCE.send("VanillaHUD", "Migrated Patcher settings replaced by PolyCrosshair. Please check PolyCrosshair's settings to make sure they are correct.")
+                    Notifications.INSTANCE.send("PolyCrosshair", "Migrated Patcher settings replaced by PolyCrosshair. Please check PolyCrosshair's settings to make sure they are correct.")
                 }
             } catch (_: ClassNotFoundException) {
 
