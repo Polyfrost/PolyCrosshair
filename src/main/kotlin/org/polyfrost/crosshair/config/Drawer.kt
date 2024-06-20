@@ -175,8 +175,11 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
 
     fun loadImage(image: BufferedImage?, save: Boolean, entry: CrosshairEntry = CrosshairEntry()): OneImage? {
         val loadedImage = OneImage(image)
-        if (loadedImage.width != loadedImage.height || loadedImage.width !in 15..32) {
-            notify("Image size isn't supported.")
+        val dimensionsSame = loadedImage.width == loadedImage.height
+        val withinSize = loadedImage.width in 15..32
+        if (!dimensionsSame || !withinSize) {
+            val message = if (!dimensionsSame) "The width of the image must be equal to the height" else "The image must be between 15x15 and 32x32 pixels"
+            notify("$message (width: ${loadedImage.width} height: ${loadedImage.height}).")
             return null
         }
         ModConfig.newCurrentCrosshair.loadFrom(entry)
