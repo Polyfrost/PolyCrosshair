@@ -6,6 +6,8 @@ import cc.polyfrost.oneconfig.config.annotations.*
 import cc.polyfrost.oneconfig.config.core.*
 import cc.polyfrost.oneconfig.config.data.*
 import cc.polyfrost.oneconfig.config.elements.*
+import cc.polyfrost.oneconfig.utils.Notifications
+import club.sk1er.patcher.config.OldPatcherConfig
 import org.polyfrost.crosshair.PolyCrosshair
 import org.polyfrost.crosshair.utils.Utils
 import java.lang.reflect.Field
@@ -70,6 +72,28 @@ object ModConfig : Config(Mod(PolyCrosshair.NAME, ModType.HUD), "${PolyCrosshair
                 if (pos.x >= canvaSize || pos.y >= canvaSize) {
                     Drawer.pixels[i.key].isToggled = false
                 }
+            }
+        }
+
+        if (!renderConfig.didPatcherMigration) {
+            try {
+                Class.forName("club.sk1er.patcher.config.OldPatcherConfig")
+                var didAnything = false
+                if (OldPatcherConfig.guiCrosshair) {
+                    renderConfig.showInGuis = false
+                    didAnything = true
+                }
+                if (OldPatcherConfig.crosshairPerspective) {
+                    renderConfig.showInThirdPerson = false
+                    didAnything = true
+                }
+                renderConfig.didPatcherMigration = true
+                save()
+                if (didAnything) {
+                    Notifications.INSTANCE.send("VanillaHUD", "Migrated Patcher settings replaced by PolyCrosshair. Please check PolyCrosshair's settings to make sure they are correct.")
+                }
+            } catch (_: ClassNotFoundException) {
+
             }
         }
     }

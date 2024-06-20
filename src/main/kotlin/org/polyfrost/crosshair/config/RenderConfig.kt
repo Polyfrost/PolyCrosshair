@@ -46,4 +46,6 @@ class RenderConfig {
     @Switch(name = "Show in Spectator Mode")
     var showInSpectator = false
 
+    var didPatcherMigration = false
+
 }
