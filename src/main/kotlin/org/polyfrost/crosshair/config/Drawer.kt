@@ -4,20 +4,31 @@ package org.polyfrost.crosshair.config
 
 import cc.polyfrost.oneconfig.config.core.OneColor
 import cc.polyfrost.oneconfig.config.elements.BasicOption
-import cc.polyfrost.oneconfig.gui.animations.*
+import cc.polyfrost.oneconfig.gui.animations.Animation
+import cc.polyfrost.oneconfig.gui.animations.DummyAnimation
+import cc.polyfrost.oneconfig.gui.animations.EaseOutQuad
 import cc.polyfrost.oneconfig.gui.elements.BasicButton
 import cc.polyfrost.oneconfig.images.OneImage
 import cc.polyfrost.oneconfig.libs.universal.UKeyboard
 import cc.polyfrost.oneconfig.renderer.scissor.ScissorHelper
-import cc.polyfrost.oneconfig.utils.*
+import cc.polyfrost.oneconfig.utils.IOUtils
+import cc.polyfrost.oneconfig.utils.InputHandler
+import cc.polyfrost.oneconfig.utils.Notifications
 import cc.polyfrost.oneconfig.utils.color.ColorPalette
-import cc.polyfrost.oneconfig.utils.dsl.*
+import cc.polyfrost.oneconfig.utils.dsl.nanoVGHelper
+import cc.polyfrost.oneconfig.utils.dsl.runAsync
 import org.polyfrost.crosshair.PolyCrosshair
-import org.polyfrost.crosshair.elements.*
+import org.polyfrost.crosshair.elements.ColorSelector
+import org.polyfrost.crosshair.elements.PresetElement
 import org.polyfrost.crosshair.render.CrosshairRenderer
-import org.polyfrost.crosshair.utils.*
+import org.polyfrost.crosshair.utils.Pos
+import org.polyfrost.crosshair.utils.Utils
 import java.awt.Image
+import java.awt.Toolkit
+import java.awt.datatransfer.DataFlavor
 import java.awt.image.BufferedImage
+import java.io.File
+import javax.imageio.ImageIO
 import kotlin.math.ceil
 
 
@@ -73,8 +84,27 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
         }
         importButton.setClickAction {
             runAsync {
-                IOUtils.getImageFromClipboard()?.let {
-                    loadImage(it.toBufferedImage(), true)
+                var image: Image? = null
+                try {
+                    val hopefullyAList = Toolkit.getDefaultToolkit().systemClipboard.getContents(null)
+                        .getTransferData(DataFlavor.javaFileListFlavor)
+                    if (hopefullyAList is List<*>) {
+                        if (hopefullyAList.isEmpty() || hopefullyAList[0] !is File) return@runAsync
+                        val file = hopefullyAList[0] as File
+                        ImageIO.read(file)?.let {
+                            image = it
+                        }
+                    }
+                } catch (_: Exception) {
+
+                }
+                if (image == null) {
+                    image = IOUtils.getImageFromClipboard()
+                }
+                if (image != null) {
+                    loadImage(image!!.toBufferedImage(), true)
+                } else {
+                    notify("No image found in clipboard.")
                 }
             }
         }
