@@ -4,6 +4,7 @@ package org.polyfrost.crosshair.config
 
 import cc.polyfrost.oneconfig.config.core.OneColor
 import cc.polyfrost.oneconfig.config.elements.BasicOption
+import cc.polyfrost.oneconfig.gui.OneConfigGui
 import cc.polyfrost.oneconfig.gui.animations.Animation
 import cc.polyfrost.oneconfig.gui.animations.DummyAnimation
 import cc.polyfrost.oneconfig.gui.animations.EaseOutQuad
@@ -15,6 +16,7 @@ import cc.polyfrost.oneconfig.utils.IOUtils
 import cc.polyfrost.oneconfig.utils.InputHandler
 import cc.polyfrost.oneconfig.utils.Notifications
 import cc.polyfrost.oneconfig.utils.color.ColorPalette
+import cc.polyfrost.oneconfig.utils.dsl.mc
 import cc.polyfrost.oneconfig.utils.dsl.nanoVGHelper
 import cc.polyfrost.oneconfig.utils.dsl.runAsync
 import org.polyfrost.crosshair.PolyCrosshair
@@ -176,7 +178,9 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
             }
         } else {
             inputHandler.unblockDWheel()
-            inputHandler.stopBlockingInput()
+            if (mc.currentScreen is OneConfigGui) {
+                inputHandler.stopBlockingInput()
+            }
         }
 
         val size = ModConfig.newCrosshairs.size
