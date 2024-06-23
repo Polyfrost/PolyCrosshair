@@ -292,7 +292,7 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
     override fun getHeight() = 256
 
     override fun keyTyped(key: Char, keyCode: Int) {
-
+        if (mc.currentScreen !is OneConfigGui) return
         if (keyCode == UKeyboard.KEY_W) moveQueue.add(MoveType.UP)
         if (keyCode == UKeyboard.KEY_S) {
             if (UKeyboard.isCtrlKeyDown()) {
