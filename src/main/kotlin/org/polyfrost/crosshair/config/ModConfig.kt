@@ -16,12 +16,17 @@ import java.util.stream.Collectors
 object ModConfig : Config(Mod(PolyCrosshair.NAME, ModType.HUD, "/${PolyCrosshair.MODID}.svg"), "${PolyCrosshair.MODID}/config.json") {
 
     @Exclude
-    var mode = false
-
-    @Exclude
     var drawer = HashMap<Int, Int>()
 
     var currentCrosshair = ""
+
+    @DualOption(
+        name = "Mode",
+        left = "Vanilla",
+        right = "Custom",
+        size = 2
+    )
+    var mode = false
 
     @CustomOption
     var crosshairs = ArrayList<String>()
@@ -59,13 +64,15 @@ object ModConfig : Config(Mod(PolyCrosshair.NAME, ModType.HUD, "/${PolyCrosshair
             newCrosshairs.addAll(crosshairs.stream().map { CrosshairEntry(it) }.collect(Collectors.toList()))
             crosshairs.clear()
         }
-        val options = listOf("hostile", "passive", "player", "hostileColor", "passiveColor", "playerColor", "dynamicOpacity")
+        var options = listOf("hostile", "passive", "player", "hostileColor", "passiveColor", "playerColor", "dynamicOpacity")
         for (i in options) {
             hideIf(i) { !renderConfig.dynamicColor }
         }
         addDependency(options[3], options[0])
         addDependency(options[4], options[1])
         addDependency(options[5], options[2])
+        options = listOf("mirror", "canvaSize")
+        options.forEach { hideIf(it) { !mode } }
         addListener("canvaSize") {
             for (i in drawer) {
                 val pos = Utils.indexToPos(i.key)
@@ -109,6 +116,7 @@ object ModConfig : Config(Mod(PolyCrosshair.NAME, ModType.HUD, "/${PolyCrosshair
         mod: Mod,
         migrate: Boolean,
     ): BasicOption? {
+        Drawer.addHideCondition { !mode }
         ConfigUtils.getSubCategory(page, "General", "").options.add(Drawer)
         return null
     }
