@@ -23,8 +23,7 @@ import org.polyfrost.crosshair.PolyCrosshair
 import org.polyfrost.crosshair.elements.ColorSelector
 import org.polyfrost.crosshair.elements.PresetElement
 import org.polyfrost.crosshair.render.CrosshairRenderer
-import org.polyfrost.crosshair.utils.Pos
-import org.polyfrost.crosshair.utils.Utils
+import org.polyfrost.crosshair.utils.*
 import java.awt.Image
 import java.awt.Toolkit
 import java.awt.datatransfer.DataFlavor
@@ -63,7 +62,7 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
     private val colorSelector = ColorSelector()
 
     init {
-        Utils.toBufferedImage(ModConfig.newCurrentCrosshair.img)?.let { it ->
+        toBufferedImage(ModConfig.newCurrentCrosshair.img)?.let { it ->
             loadImage(it, false, ModConfig.newCurrentCrosshair)?.let {
                 CrosshairRenderer.updateTexture(it)
             }
@@ -75,12 +74,12 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
         }
         saveButton.setClickAction {
             runAsync {
-                Utils.save(saveFromDrawer(false))
+                save(saveFromDrawer(false))
             }
         }
         exportButton.setClickAction {
             runAsync {
-                saveFromDrawer(false)?.let { Utils.copy(it.image) }
+                saveFromDrawer(false)?.let { copy(it.image) }
             }
 
         }
@@ -113,10 +112,6 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
     }
 
     override fun draw(vg: Long, x: Int, y: Int, inputHandler: InputHandler) {
-//        var y = y
-//        modeSwitch.draw(vg, x.toFloat(), y.toFloat(), inputHandler)
-//        if (ModConfig.mode) return
-//        y += 48
         if (moveQueue.isNotEmpty()) {
             var x = 0
             var y = 0
@@ -130,7 +125,7 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
 
         for (posY in 0..<ModConfig.canvaSize) {
             for (posX in 0..<ModConfig.canvaSize) {
-                pixels[Utils.posToIndex(posX, posY)].draw(vg, x.toFloat(), y.toFloat(), inputHandler)
+                pixels[posToIndex(posX, posY)].draw(vg, x.toFloat(), y.toFloat(), inputHandler)
             }
         }
 
@@ -221,11 +216,11 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
         for (posY in 0..<ModConfig.canvaSize) {
             for (posX in 0..<ModConfig.canvaSize) {
                 val c = loadedImage.image.getRGB(posX, posY)
-                pixels[Utils.posToIndex(posX, posY)].isToggled = c shr 24 != 0
-                pixels[Utils.posToIndex(posX, posY)].color = c
+                pixels[posToIndex(posX, posY)].isToggled = c shr 24 != 0
+                pixels[posToIndex(posX, posY)].color = c
             }
         }
-        if (save) Utils.save(loadedImage)
+        if (save) save(loadedImage)
         return loadedImage
     }
 
@@ -236,7 +231,7 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
             return null
         }
         for (i in ModConfig.drawer) {
-            val pos = Utils.indexToPos(i.key)
+            val pos = indexToPos(i.key)
             if (pos.x >= ModConfig.canvaSize || pos.y >= ModConfig.canvaSize) {
                 pixels[i.key].isToggled = false
                 continue
@@ -249,7 +244,7 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
 
     fun reset() {
         val newEntry = CrosshairEntry()
-        Utils.toBufferedImage(newEntry.img)?.let {
+        toBufferedImage(newEntry.img)?.let {
             loadImage(it, false, newEntry)
         }
     }
@@ -257,7 +252,7 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
     fun move(x: Int, y: Int) {
         val newPositions = HashMap<Pos, Int>()
         for (i in ModConfig.drawer) {
-            val pos = Utils.indexToPos(i.key)
+            val pos = indexToPos(i.key)
             val posX = pos.x + x
             val posY = pos.y + y
             pixels[i.key].isToggled = false
@@ -285,7 +280,7 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
 
     override fun finishUpAndClose() {
         val image = saveFromDrawer(true) ?: return
-        ModConfig.newCurrentCrosshair.img = Utils.toBase64(image.image)
+        ModConfig.newCurrentCrosshair.img = toBase64(image.image)
         CrosshairRenderer.updateTexture(image)
     }
 
@@ -297,7 +292,7 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
         if (keyCode == UKeyboard.KEY_S) {
             if (UKeyboard.isCtrlKeyDown()) {
                 runAsync {
-                    Utils.save(saveFromDrawer(false))
+                    save(saveFromDrawer(false))
                 }
             } else {
                 moveQueue.add(MoveType.DOWN)

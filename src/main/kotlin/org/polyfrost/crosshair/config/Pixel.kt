@@ -7,7 +7,8 @@ import cc.polyfrost.oneconfig.gui.elements.BasicElement
 import cc.polyfrost.oneconfig.utils.InputHandler
 import cc.polyfrost.oneconfig.utils.color.ColorPalette
 import cc.polyfrost.oneconfig.utils.dsl.nanoVGHelper
-import org.polyfrost.crosshair.utils.Utils
+import org.polyfrost.crosshair.utils.indexToPos
+import org.polyfrost.crosshair.utils.posToIndex
 import kotlin.math.abs
 import kotlin.math.max
 
@@ -38,7 +39,7 @@ class Pixel(val index: Int) : BasicElement(16, 16, ColorPalette.PRIMARY, true, 0
     }
 
     override fun update(x: Float, y: Float, inputHandler: InputHandler) {
-        val pos = Utils.indexToPos(index)
+        val pos = indexToPos(index)
         val size = ModConfig.canvaSize
         backgroundColor = if (size % 2 == 1 && pos.x == size / 2 && pos.x == pos.y) {
             OneColor("703A3AFF").rgb
@@ -97,7 +98,7 @@ class Pixel(val index: Int) : BasicElement(16, 16, ColorPalette.PRIMARY, true, 0
     }
 
     fun setPixel(x: Int, y: Int, toggle: Boolean, color: Int) {
-        Drawer.pixels[Utils.posToIndex(x, y)].set(toggle, color)
+        Drawer.pixels[posToIndex(x, y)].set(toggle, color)
     }
 
     fun set(toggle: Boolean, color: Int) {

@@ -17,62 +17,58 @@ import javax.imageio.ImageIO
 
 private fun notify(message: String) = Notifications.INSTANCE.send(PolyCrosshair.NAME, message)
 
-object Utils {
+fun posToIndex(x: Int, y: Int): Int =
+    x + y * 32
 
-    fun posToIndex(x: Int, y: Int): Int =
-        x + y * 32
+fun indexToPos(index: Int): Pos =
+    Pos(index % 32, index / 32)
 
-    fun indexToPos(index: Int): Pos =
-        Pos(index % 32, index / 32)
+fun export(image: BufferedImage?, name: String): String {
+    image ?: return ""
+    val path = PolyCrosshair.path + name + ".png"
+    OneImage(image).save(path)
+    return path
+}
 
-    fun export(image: BufferedImage?, name: String): String {
-        image ?: return ""
-        val path = PolyCrosshair.path + name + ".png"
-        OneImage(image).save(path)
-        return path
-    }
+@Throws(IOException::class)
+fun resizeImage(originalImage: BufferedImage, targetWidth: Int, targetHeight: Int): BufferedImage {
+    val resizedImage = BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_RGB)
+    val graphics2D = resizedImage.createGraphics()
+    graphics2D.drawImage(originalImage, 0, 0, targetWidth, targetHeight, null)
+    graphics2D.dispose()
+    return resizedImage
+}
 
-    @Throws(IOException::class)
-    fun resizeImage(originalImage: BufferedImage, targetWidth: Int, targetHeight: Int): BufferedImage {
-        val resizedImage = BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_RGB)
-        val graphics2D = resizedImage.createGraphics()
-        graphics2D.drawImage(originalImage, 0, 0, targetWidth, targetHeight, null)
-        graphics2D.dispose()
-        return resizedImage
-    }
-
-    fun save(image: OneImage?) {
-        image ?: return
-        val base64 = toBase64(image.image)
-        ModConfig.newCrosshairs.forEach {
-            if (it.img == base64) {
-                it.loadFrom(ModConfig.newCurrentCrosshair)
-                return
-            }
+fun save(image: OneImage?) {
+    image ?: return
+    val base64 = toBase64(image.image)
+    ModConfig.newCrosshairs.forEach {
+        if (it.img == base64) {
+            it.loadFrom(ModConfig.newCurrentCrosshair)
+            return
         }
-        val entry = CrosshairEntry()
-        entry.loadFrom(ModConfig.newCurrentCrosshair)
-        entry.img = base64
-        ModConfig.newCrosshairs.add(entry)
     }
+    val entry = CrosshairEntry()
+    entry.loadFrom(ModConfig.newCurrentCrosshair)
+    entry.img = base64
+    ModConfig.newCrosshairs.add(entry)
+}
 
-    fun toBufferedImage(string: String): BufferedImage? {
-        val bytes = Base64.getDecoder().decode(string)
-        return ImageIO.read(ByteArrayInputStream(bytes))
-    }
+fun toBufferedImage(string: String): BufferedImage? {
+    val bytes = Base64.getDecoder().decode(string)
+    return ImageIO.read(ByteArrayInputStream(bytes))
+}
 
-    fun toBase64(image: BufferedImage): String {
-        val byteOut = ByteArrayOutputStream()
-        ImageIO.write(image, "png", byteOut)
-        val encoded = Base64.getEncoder().encodeToString(byteOut.toByteArray())
-        byteOut.close()
-        return encoded
-    }
+fun toBase64(image: BufferedImage): String {
+    val byteOut = ByteArrayOutputStream()
+    ImageIO.write(image, "png", byteOut)
+    val encoded = Base64.getEncoder().encodeToString(byteOut.toByteArray())
+    byteOut.close()
+    return encoded
+}
 
-    fun copy(image: Image?) {
-        image ?: return
-        IOUtils.copyImageToClipboard(image)
-        notify("Crosshair has been copied to clipboard.")
-    }
-
+fun copy(image: Image?) {
+    image ?: return
+    IOUtils.copyImageToClipboard(image)
+    notify("Crosshair has been copied to clipboard.")
 }
