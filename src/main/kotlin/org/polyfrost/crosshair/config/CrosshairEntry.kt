@@ -23,7 +23,7 @@ class CrosshairEntry(
     @Slider(name = "Y Offset", min = -1080f, max = 1080f)
     var offsetY = 0
 
-    @Switch(name = "Centered")
+    @Switch(name = "Centered", description = "In vanilla Minecraft, the crosshair is not centered. Enable this option to center the crosshair.")
     var centered = false
 
     @Button(name = "Transform", text = "Reset", size = 1)
