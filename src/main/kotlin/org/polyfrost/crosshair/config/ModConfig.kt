@@ -9,7 +9,7 @@ import cc.polyfrost.oneconfig.config.elements.*
 import cc.polyfrost.oneconfig.utils.Notifications
 import club.sk1er.patcher.config.OldPatcherConfig
 import org.polyfrost.crosshair.PolyCrosshair
-import org.polyfrost.crosshair.utils.Utils
+import org.polyfrost.crosshair.utils.*
 import java.lang.reflect.Field
 import java.util.stream.Collectors
 
@@ -75,7 +75,7 @@ object ModConfig : Config(Mod(PolyCrosshair.NAME, ModType.HUD, "/${PolyCrosshair
         options.forEach { hideIf(it) { !mode } }
         addListener("canvaSize") {
             for (i in drawer) {
-                val pos = Utils.indexToPos(i.key)
+                val pos = indexToPos(i.key)
                 if (pos.x >= canvaSize || pos.y >= canvaSize) {
                     Drawer.pixels[i.key].isToggled = false
                 }

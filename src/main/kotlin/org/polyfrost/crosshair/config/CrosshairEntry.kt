@@ -2,9 +2,10 @@ package org.polyfrost.crosshair.config
 
 import cc.polyfrost.oneconfig.config.annotations.Button
 import cc.polyfrost.oneconfig.config.annotations.Slider
+import cc.polyfrost.oneconfig.config.annotations.Switch
 import cc.polyfrost.oneconfig.config.core.ConfigUtils
 import cc.polyfrost.oneconfig.utils.dsl.runAsync
-import org.polyfrost.crosshair.utils.Utils
+import org.polyfrost.crosshair.utils.*
 
 class CrosshairEntry(
     var img: String = "iVBORw0KGgoAAAANSUhEUgAAAA8AAAAPCAYAAAA71pVKAAAAGUlEQVR42mNgGH7gPxAMd83/iQCjATYkAQAXJEO9Ljp2dQAAAABJRU5ErkJggg\u003d\u003d",
@@ -22,13 +23,16 @@ class CrosshairEntry(
     @Slider(name = "Y Offset", min = -1080f, max = 1080f)
     var offsetY = 0
 
-    @Button(name = "Transform", text = "Reset", size = 2)
+    @Switch(name = "Centered")
+    var centered = false
+
+    @Button(name = "Transform", text = "Reset", size = 1)
     var transformReset = Runnable {
         runAsync {
             val img = ModConfig.newCurrentCrosshair.img
             ModConfig.newCurrentCrosshair.loadFrom(CrosshairEntry())
             ModConfig.newCurrentCrosshair.img = img
-            Utils.save(Drawer.saveFromDrawer(false))
+            save(Drawer.saveFromDrawer(false))
         }
     }
 

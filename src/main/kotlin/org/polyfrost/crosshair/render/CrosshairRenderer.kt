@@ -7,8 +7,10 @@ import cc.polyfrost.oneconfig.libs.universal.UResolution
 import cc.polyfrost.oneconfig.utils.dsl.mc
 import net.minecraft.client.gui.Gui
 import net.minecraft.client.renderer.EntityRenderer
+import net.minecraft.client.renderer.Tessellator
 import net.minecraft.client.renderer.GlStateManager as GL
 import net.minecraft.client.renderer.texture.DynamicTexture
+import net.minecraft.client.renderer.vertex.DefaultVertexFormats
 import net.minecraft.entity.monster.IMob
 import net.minecraft.entity.passive.EntityAmbientCreature
 import net.minecraft.entity.passive.EntityAnimal
@@ -20,23 +22,26 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
 import org.lwjgl.opengl.GL11
 import org.polyfrost.crosshair.config.ModConfig
 import org.polyfrost.crosshair.mixin.GuiIngameAccessor
+import java.awt.image.BufferedImage
+import kotlin.math.ceil
 
 object CrosshairRenderer {
+    private var drawingImage = BufferedImage(10, 10, BufferedImage.TYPE_INT_ARGB)
     private var texture = DynamicTexture(15, 15)
     private var textureLocation = mc.textureManager.getDynamicTextureLocation("polycrosshair", texture)
     private var whiteTexture = DynamicTexture(15, 15)
     private var whiteTextureLocation = mc.textureManager.getDynamicTextureLocation("polycrosshair", whiteTexture)
 
     fun updateTexture(image: OneImage) {
-        val bufferedImage = image.image
-        texture = DynamicTexture(bufferedImage)
+        drawingImage = scaleImage(image.image, UResolution.scaleFactor.toFloat() * ModConfig.newCurrentCrosshair.scale / 100f)
+        texture = DynamicTexture(drawingImage)
         textureLocation = mc.textureManager.getDynamicTextureLocation("polycrosshair", texture)
-        whiteTexture = DynamicTexture(bufferedImage.width, bufferedImage.height)
-        for (posY in 0..<bufferedImage.height) {
-            for (posX in 0..<bufferedImage.width) {
-                val color = bufferedImage.getRGB(posX, posY)
+        whiteTexture = DynamicTexture(drawingImage.width, drawingImage.height)
+        for (posY in 0..<drawingImage.height) {
+            for (posX in 0..<drawingImage.width) {
+                val color = drawingImage.getRGB(posX, posY)
                 if (color shr 24 == 0) continue
-                whiteTexture.textureData[posX + posY * bufferedImage.width] = -1
+                whiteTexture.textureData[posX + posY * drawingImage.width] = -1
             }
         }
         whiteTexture.updateDynamicTexture()
@@ -70,21 +75,21 @@ object CrosshairRenderer {
         val mcScale = UResolution.scaleFactor.toFloat()
         GL.scale(1 / mcScale, 1 / mcScale, 1f)
         val crosshair = ModConfig.newCurrentCrosshair
-        GL.translate(crosshair.offsetX / mcScale, crosshair.offsetY / mcScale, 0f)
-        GL.scale(mcScale, mcScale, 1f)
-        GL.translate((UResolution.scaledWidth / 2).toDouble(), (UResolution.scaledHeight / 2).toDouble(), 0.0)
+        GL.translate(crosshair.offsetX.toFloat(), crosshair.offsetY.toFloat(), 0f)
+        GL.translate(UResolution.windowWidth / 2f, UResolution.windowHeight / 2f, 0f)
         GL.rotate(crosshair.rotation.toFloat(), 0f, 0f, 1f)
-        val size = if (ModConfig.mode) ModConfig.canvaSize else 15
-        val textureSize = if (ModConfig.mode) size.toFloat() else 256f
-        val scale = (crosshair.scale + crosshair.scale % 2) / 100f
-        GL.scale(scale, scale, 1f)
-        GL.translate(-size / 2f, -size / 2f, 0f)
-        Gui.drawModalRectWithCustomSizedTexture(0, 0, 0f, 0f, size, size, textureSize, textureSize)
+        val scale = ModConfig.newCurrentCrosshair.scale / 100f
+        val size = if (ModConfig.mode) drawingImage.width else ceil(15 * mcScale * scale).toInt()
+        val textureSize = if (ModConfig.mode) size else 256
+        val translation = if (crosshair.centered) (-size / 2).toFloat() else (-(size - mcScale) / 2).toInt().toFloat()
+        GL.translate(translation, translation, 0f)
+        val uv = if (ModConfig.mode) size else 15
+        Gui.drawScaledCustomSizeModalRect(0, 0, 0f, 0f, uv, uv, size, size, textureSize.toFloat(), textureSize.toFloat())
         val c = getColor()
         if (c.rgb != -1) {
             if (ModConfig.mode) mc.textureManager.bindTexture(whiteTextureLocation)
             GL11.glColor4f(c.red / 255f, c.green / 255f, c.blue / 255f, renderConfig.dynamicOpacity / 100f)
-            Gui.drawModalRectWithCustomSizedTexture(0, 0, 0f, 0f, size, size, textureSize, textureSize)
+            Gui.drawScaledCustomSizeModalRect(0, 0, 0f, 0f, uv, uv, size, size, textureSize.toFloat(), textureSize.toFloat())
         }
         if (renderConfig.invertColor) {
             GL.tryBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, 1, 0)
@@ -107,6 +112,16 @@ object CrosshairRenderer {
             }
         }
         return WHITE
+    }
+
+    fun scaleImage(image: BufferedImage, scale: Float): BufferedImage {
+        val size = ceil(image.width * scale).toInt()
+        val resizedImage = BufferedImage(size, size, image.type)
+        val g2d = resizedImage.createGraphics()
+        g2d.drawImage(image, 0, 0, size, size, null)
+        g2d.dispose()
+
+        return resizedImage
     }
 
 }
