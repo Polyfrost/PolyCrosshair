@@ -10,14 +10,11 @@ import club.sk1er.patcher.config.OldPatcherConfig
 import org.polyfrost.crosshair.PolyCrosshair
 import org.polyfrost.crosshair.utils.*
 import java.lang.reflect.Field
-import java.util.stream.Collectors
 
 object ModConfig : Config(Mod(PolyCrosshair.NAME, ModType.HUD, "/${PolyCrosshair.MODID}.svg"), "${PolyCrosshair.MODID}/config.json") {
 
     @Exclude
     var drawer = HashMap<Int, Int>()
-
-    var currentCrosshair = ""
 
     @DualOption(
         name = "Mode",
@@ -28,9 +25,7 @@ object ModConfig : Config(Mod(PolyCrosshair.NAME, ModType.HUD, "/${PolyCrosshair
     var mode = false
 
     @CustomOption
-    var crosshairs = ArrayList<String>()
-
-    var newCrosshairs: ArrayList<CrosshairEntry> = arrayListOf(CrosshairEntry())
+    var newCrosshairs = arrayListOf(CrosshairEntry())
 
     var penColor = OneColor(-1)
 
@@ -55,14 +50,6 @@ object ModConfig : Config(Mod(PolyCrosshair.NAME, ModType.HUD, "/${PolyCrosshair
         initialize()
         this.generateOptionList(newCurrentCrosshair, mod.defaultPage, this.mod, false)
         this.generateOptionList(renderConfig, mod.defaultPage, this.mod, false)
-        if (currentCrosshair.isNotEmpty()) {
-            newCurrentCrosshair.loadFrom(CrosshairEntry(currentCrosshair))
-            currentCrosshair = ""
-        }
-        if (crosshairs.isNotEmpty()) {
-            newCrosshairs.addAll(crosshairs.stream().map { CrosshairEntry(it) }.collect(Collectors.toList()))
-            crosshairs.clear()
-        }
         var options = listOf("hostile", "passive", "player", "hostileColor", "passiveColor", "playerColor", "dynamicOpacity")
         for (i in options) {
             hideIf(i) { !renderConfig.dynamicColor }
