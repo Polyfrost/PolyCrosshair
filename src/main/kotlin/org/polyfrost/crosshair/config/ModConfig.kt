@@ -6,7 +6,6 @@ import cc.polyfrost.oneconfig.config.annotations.*
 import cc.polyfrost.oneconfig.config.core.*
 import cc.polyfrost.oneconfig.config.data.*
 import cc.polyfrost.oneconfig.config.elements.*
-import cc.polyfrost.oneconfig.utils.Notifications
 import club.sk1er.patcher.config.OldPatcherConfig
 import org.polyfrost.crosshair.PolyCrosshair
 import org.polyfrost.crosshair.utils.*
@@ -101,10 +100,9 @@ object ModConfig : Config(Mod(PolyCrosshair.NAME, ModType.HUD, "/${PolyCrosshair
                 renderConfig.didPatcherMigration = true
                 save()
                 if (didAnything) {
-                    Notifications.INSTANCE.send("PolyCrosshair", "Migrated Patcher settings replaced by PolyCrosshair. Please check PolyCrosshair's settings to make sure they are correct.")
+                    notify("Migrated Patcher settings replaced by PolyCrosshair. Please check PolyCrosshair's settings to make sure they are correct.")
                 }
             } catch (_: ClassNotFoundException) {
-
             }
         }
     }

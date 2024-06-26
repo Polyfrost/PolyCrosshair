@@ -11,11 +11,10 @@ import java.awt.Image
 import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
-import java.io.IOException
 import java.util.*
 import javax.imageio.ImageIO
 
-private fun notify(message: String) = Notifications.INSTANCE.send(PolyCrosshair.NAME, message)
+fun notify(message: String) = Notifications.INSTANCE.send(PolyCrosshair.NAME, message)
 
 fun posToIndex(x: Int, y: Int): Int =
     x + y * 32
@@ -28,15 +27,6 @@ fun export(image: BufferedImage?, name: String): String {
     val path = PolyCrosshair.path + name + ".png"
     OneImage(image).save(path)
     return path
-}
-
-@Throws(IOException::class)
-fun resizeImage(originalImage: BufferedImage, targetWidth: Int, targetHeight: Int): BufferedImage {
-    val resizedImage = BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_RGB)
-    val graphics2D = resizedImage.createGraphics()
-    graphics2D.drawImage(originalImage, 0, 0, targetWidth, targetHeight, null)
-    graphics2D.dispose()
-    return resizedImage
 }
 
 fun save(image: OneImage?) {

@@ -14,12 +14,10 @@ import cc.polyfrost.oneconfig.libs.universal.UKeyboard
 import cc.polyfrost.oneconfig.renderer.scissor.ScissorHelper
 import cc.polyfrost.oneconfig.utils.IOUtils
 import cc.polyfrost.oneconfig.utils.InputHandler
-import cc.polyfrost.oneconfig.utils.Notifications
 import cc.polyfrost.oneconfig.utils.color.ColorPalette
 import cc.polyfrost.oneconfig.utils.dsl.mc
 import cc.polyfrost.oneconfig.utils.dsl.nanoVGHelper
 import cc.polyfrost.oneconfig.utils.dsl.runAsync
-import org.polyfrost.crosshair.PolyCrosshair
 import org.polyfrost.crosshair.elements.ColorSelector
 import org.polyfrost.crosshair.elements.PresetElement
 import org.polyfrost.crosshair.render.CrosshairRenderer
@@ -31,9 +29,6 @@ import java.awt.image.BufferedImage
 import java.io.File
 import javax.imageio.ImageIO
 import kotlin.math.ceil
-
-
-private fun notify(message: String) = Notifications.INSTANCE.send(PolyCrosshair.NAME, message)
 
 object Drawer : BasicOption(null, null, "", "", "", "", 2) {
 
