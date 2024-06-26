@@ -11,7 +11,7 @@ class RenderConfig {
     var dynamicColor = false
 
     @Switch(name = "Invert Color")
-    var invertColor = false
+    var invertColor = true
 
     @Slider(name = "Overlay Opacity", min = 0f, max = 100f)
     var dynamicOpacity = 100
