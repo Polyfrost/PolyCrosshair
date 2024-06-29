@@ -56,8 +56,11 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
 
     private val colorSelector = ColorSelector()
 
+    var inArea = false
+
     init {
         toBufferedImage(ModConfig.newCurrentCrosshair.img)?.let { it ->
+            if (it.width == 0 || it.height == 0) return@let
             loadImage(it, false, ModConfig.newCurrentCrosshair)?.let {
                 CrosshairRenderer.updateTexture(it)
             }
@@ -151,7 +154,9 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
 
         val scissor = ScissorHelper.INSTANCE.scissor(vg, (x + 349).toFloat(), y.toFloat(), 644f, 256f)
 
-        if (scissor.isInScissor(inputHandler.mouseX(), inputHandler.mouseY())) {
+        inArea = scissor.isInScissor(inputHandler.mouseX(), inputHandler.mouseY())
+
+        if (inArea) {
             inputHandler.unblockDWheel()
 
             val dWheel = inputHandler.dWheel.toFloat()

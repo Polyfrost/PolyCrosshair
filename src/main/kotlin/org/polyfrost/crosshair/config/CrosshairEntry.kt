@@ -8,7 +8,7 @@ import cc.polyfrost.oneconfig.utils.dsl.runAsync
 import org.polyfrost.crosshair.utils.*
 
 class CrosshairEntry(
-    var img: String = "iVBORw0KGgoAAAANSUhEUgAAAA8AAAAPCAYAAAA71pVKAAAAGUlEQVR42mNgGH7gPxAMd83/iQCjATYkAQAXJEO9Ljp2dQAAAABJRU5ErkJggg\u003d\u003d",
+    var img: String = "iVBORw0KGgoAAAANSUhEUgAAAA8AAAAPCAYAAAA71pVKAAAAEUlEQVR42mNgGAWjYBQMIgAAA5MAAecADfkAAAAASUVORK5CYII\u003d",
 ) {
 
     @Slider(name = "Scale %", min = 0f, max = 200f)

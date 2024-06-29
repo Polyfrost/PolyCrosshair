@@ -2,17 +2,23 @@
 
 package org.polyfrost.crosshair.elements
 
-import cc.polyfrost.oneconfig.gui.elements.*
-import cc.polyfrost.oneconfig.renderer.asset.*
+import cc.polyfrost.oneconfig.gui.elements.BasicButton
+import cc.polyfrost.oneconfig.gui.elements.BasicElement
+import cc.polyfrost.oneconfig.platform.Platform
+import cc.polyfrost.oneconfig.renderer.asset.AssetHelper
+import cc.polyfrost.oneconfig.renderer.asset.Image
+import cc.polyfrost.oneconfig.renderer.asset.SVG
 import cc.polyfrost.oneconfig.utils.InputHandler
 import cc.polyfrost.oneconfig.utils.color.ColorPalette
 import cc.polyfrost.oneconfig.utils.dsl.nanoVGHelper
 import org.polyfrost.crosshair.PolyCrosshair
 import org.polyfrost.crosshair.config.CrosshairEntry
 import org.polyfrost.crosshair.config.Drawer
-import org.polyfrost.crosshair.utils.*
+import org.polyfrost.crosshair.utils.copy
+import org.polyfrost.crosshair.utils.export
+import org.polyfrost.crosshair.utils.toBufferedImage
 import java.io.File
-import java.util.UUID
+import java.util.*
 
 private val remove = SVG("/assets/polycrosshair/trashcan.svg")
 private val copy = SVG("/assets/polycrosshair/copy.svg")
@@ -33,14 +39,28 @@ class PresetElement(val crosshair: CrosshairEntry) : BasicElement(149, 149, Colo
         }
     }
 
+    override fun update(x: Float, y: Float, inputHandler: InputHandler) {
+        hovered = Drawer.inArea && inputHandler.isAreaHovered(x - hitBoxX, y - hitBoxY, (width + hitBoxX).toFloat(), (height + hitBoxY).toFloat())
+        pressed = hovered && Platform.getMousePlatform().isButtonDown(0)
+        clicked = inputHandler.isClicked(false) && hovered
+
+        if (clicked) {
+            toggled = !toggled
+            onClick()
+        }
+
+        currentColor = if (hoverFx) colorAnimation.getColor(hovered, pressed)
+        else colorAnimation.getColor(false, false)
+    }
+
     override fun draw(vg: Long, x: Float, y: Float, inputHandler: InputHandler?) {
         super.draw(vg, x, y, inputHandler)
         val half = 135 / 2f
         nanoVGHelper.translate(vg, x + 7 + half, y + 7 + half)
         nanoVGHelper.rotate(vg, crosshair.rotation.toDouble())
-        nanoVGHelper.drawImage(vg, image, - half, - half, 135f, 135f, -1)
-        nanoVGHelper.rotate(vg, - crosshair.rotation.toDouble())
-        nanoVGHelper.translate(vg, - (x + 7 + half), - (y + 7 + half))
+        nanoVGHelper.drawImage(vg, image, -half, -half, 135f, 135f, -1)
+        nanoVGHelper.rotate(vg, -crosshair.rotation.toDouble())
+        nanoVGHelper.translate(vg, -(x + 7 + half), -(y + 7 + half))
         if (hovered) {
             copyButton.draw(vg, x + 117, y + 32, inputHandler)
             removeButton.draw(vg, x + 117, y, inputHandler)
