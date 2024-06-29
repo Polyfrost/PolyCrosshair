@@ -53,8 +53,8 @@ object CrosshairRenderer {
     fun updateVanilla() {
         val icon = TextureUtil.readBufferedImage(mc.resourceManager.getResource(Gui.icons).inputStream)
         vanilla = DynamicTexture(15, 15)
-        for (y in 0..15) {
-            for (x in 0..15) {
+        for (y in 0 until  15) {
+            for (x in 0 until 15) {
                 if (icon.getRGB(x, y) == -1) {
                     vanilla.textureData[x + y * 15] = -1
                 }
