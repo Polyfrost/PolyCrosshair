@@ -57,6 +57,7 @@ object ModConfig : Config(Mod(PolyCrosshair.NAME, ModType.HUD, "/${PolyCrosshair
         addDependency(options[3], options[0])
         addDependency(options[4], options[1])
         addDependency(options[5], options[2])
+        addDependency("centered", "mode")
         options = listOf("mirror", "canvaSize")
         options.forEach { hideIf(it) { !mode } }
         addListener("canvaSize") {

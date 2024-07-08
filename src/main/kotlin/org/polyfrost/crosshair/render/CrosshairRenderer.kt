@@ -52,11 +52,12 @@ object CrosshairRenderer {
 
     fun updateVanilla() {
         val icon = TextureUtil.readBufferedImage(mc.resourceManager.getResource(Gui.icons).inputStream)
-        vanilla = DynamicTexture(15, 15)
-        for (y in 0 until  15) {
-            for (x in 0 until 15) {
-                if (icon.getRGB(x, y) == -1) {
-                    vanilla.textureData[x + y * 15] = -1
+        val size = icon.width * 16 / 256
+        vanilla = DynamicTexture(size, size)
+        for (y in 0 until size) {
+            for (x in 0 until size) {
+                icon.getRGB(x, y).let {
+                    if (it != 0) vanilla.textureData[x + y * size] = it
                 }
             }
         }
@@ -99,10 +100,10 @@ object CrosshairRenderer {
         GL.translate(crosshair.offsetX.toFloat(), crosshair.offsetY.toFloat(), 0f)
         GL.translate((UResolution.windowWidth / 2).toFloat(), (UResolution.windowHeight / 2).toFloat(), 0f)
         GL.rotate(crosshair.rotation.toFloat(), 0f, 0f, 1f)
-        val scale = ModConfig.newCurrentCrosshair.scale / 100f
-        val textureSize = if (ModConfig.mode) drawingImage.width else 15
+        val scale = crosshair.scale / 100f
+        val textureSize = if (ModConfig.mode) drawingImage.width else 16
         val size = ceil(textureSize * mcScale * scale).toInt()
-        val translation = if (crosshair.centered) (-size / 2).toFloat() else (-(size - mcScale) / 2).toInt().toFloat()
+        val translation = if (ModConfig.mode) if (crosshair.centered) (-size / 2).toFloat() else (-(size - mcScale) / 2).toInt().toFloat() else ceil(-7 * mcScale * scale)
         GL.translate(translation, translation, 0f)
         Gui.drawScaledCustomSizeModalRect(0, 0, 0f, 0f, textureSize, textureSize, size, size, textureSize.toFloat(), textureSize.toFloat())
         val c = getColor()
