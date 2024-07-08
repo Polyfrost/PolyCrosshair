@@ -57,7 +57,7 @@ object CrosshairRenderer {
         for (y in 0 until size) {
             for (x in 0 until size) {
                 icon.getRGB(x, y).let {
-                    if (it != 0) vanilla.textureData[x + y * size] = it
+                    if (it != -16777216) vanilla.textureData[x + y * size] = it
                 }
             }
         }
