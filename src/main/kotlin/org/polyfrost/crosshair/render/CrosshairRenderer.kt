@@ -101,9 +101,10 @@ object CrosshairRenderer {
         GL.translate((UResolution.windowWidth / 2).toFloat(), (UResolution.windowHeight / 2).toFloat(), 0f)
         GL.rotate(crosshair.rotation.toFloat(), 0f, 0f, 1f)
         val scale = crosshair.scale / 100f
-        val textureSize = if (ModConfig.mode) drawingImage.width else 16
-        val size = ceil(textureSize * mcScale * scale).toInt()
-        val translation = if (ModConfig.mode) if (crosshair.centered) (-size / 2).toFloat() else (-(size - mcScale) / 2).toInt().toFloat() else ceil(-7 * mcScale * scale)
+        val textureSize = 16
+        val autoScaledSize = if (ModConfig.canvaSize % 2 == 0) 16 else 15
+        val size = ceil((if (ModConfig.mode) autoScaledSize else textureSize) * mcScale * scale).toInt()
+        val translation = ceil((if (ModConfig.mode && crosshair.centered) -autoScaledSize / 2f else -7f) * mcScale * scale)
         GL.translate(translation, translation, 0f)
         Gui.drawScaledCustomSizeModalRect(0, 0, 0f, 0f, textureSize, textureSize, size, size, textureSize.toFloat(), textureSize.toFloat())
         val c = getColor()

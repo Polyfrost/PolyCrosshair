@@ -38,8 +38,6 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
 
     var removeQueue = ArrayList<CrosshairEntry>()
 
-    var moveQueue = ArrayList<MoveType>()
-
     private var scroll = 0f
 
     private var scrollTarget = 0f
@@ -67,7 +65,7 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
         }
         resetButton.setClickAction {
             runAsync {
-                reset()
+                clear()
             }
         }
         saveButton.setClickAction {
@@ -110,16 +108,6 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
     }
 
     override fun draw(vg: Long, x: Int, y: Int, inputHandler: InputHandler) {
-        if (moveQueue.isNotEmpty()) {
-            var x = 0
-            var y = 0
-            for (i in moveQueue) {
-                x += i.x
-                y += i.y
-            }
-            move(x, y)
-            moveQueue.clear()
-        }
 
         for (posY in 0..<ModConfig.canvaSize) {
             for (posX in 0..<ModConfig.canvaSize) {
@@ -202,6 +190,12 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
         return bufferedImage
     }
 
+    fun clear() {
+        for (i in pixels) {
+            i.isToggled = false
+        }
+    }
+
     fun loadImage(image: BufferedImage?, save: Boolean, entry: CrosshairEntry = CrosshairEntry()): OneImage? {
         val loadedImage = OneImage(image)
         val dimensionsSame = loadedImage.width == loadedImage.height
@@ -242,40 +236,9 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
         return image
     }
 
-    fun reset() {
-        val newEntry = CrosshairEntry()
-        toBufferedImage(newEntry.img)?.let {
-            loadImage(it, false, newEntry)
-        }
-    }
-
-    fun move(x: Int, y: Int) {
-        val newPositions = HashMap<Pos, Int>()
-        for (i in ModConfig.drawer) {
-            val pos = indexToPos(i.key)
-            val posX = pos.x + x
-            val posY = pos.y + y
-            pixels[i.key].isToggled = false
-            if (posX !in 0..<ModConfig.canvaSize || posY !in 0..<ModConfig.canvaSize) continue
-            newPositions[Pos(posX, posY)] = i.value
-        }
-        for (i in newPositions) {
-            val index = i.key.y * 32 + i.key.x
-            pixels[index].isToggled = true
-            pixels[index].color = i.value
-        }
-    }
-
     fun getElement(entry: CrosshairEntry): PresetElement {
         elements[entry] ?: elements.put(entry, PresetElement(entry))
         return elements[entry]!!
-    }
-
-    enum class MoveType(val x: Int, val y: Int) {
-        UP(0, -1),
-        DOWN(0, 1),
-        LEFT(-1, 0),
-        RIGHT(1, 0)
     }
 
     override fun finishUpAndClose() {
@@ -288,18 +251,11 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
 
     override fun keyTyped(key: Char, keyCode: Int) {
         if (mc.currentScreen !is OneConfigGui) return
-        if (keyCode == UKeyboard.KEY_W) moveQueue.add(MoveType.UP)
-        if (keyCode == UKeyboard.KEY_S) {
-            if (UKeyboard.isCtrlKeyDown()) {
-                runAsync {
-                    save(saveFromDrawer(false))
-                }
-            } else {
-                moveQueue.add(MoveType.DOWN)
+        if (UKeyboard.isCtrlKeyDown() && keyCode == UKeyboard.KEY_S) {
+            runAsync {
+                save(saveFromDrawer(false))
             }
         }
-        if (keyCode == UKeyboard.KEY_A) moveQueue.add(MoveType.LEFT)
-        if (keyCode == UKeyboard.KEY_D) moveQueue.add(MoveType.RIGHT)
     }
 
 }

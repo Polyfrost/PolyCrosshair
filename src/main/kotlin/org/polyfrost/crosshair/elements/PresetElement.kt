@@ -75,6 +75,7 @@ class PresetElement(val crosshair: CrosshairEntry) : BasicElement(149, 149, Colo
     override fun onClick() {
         if (copyButton.isHovered) return
         if (removeButton.isHovered) return
+        Drawer.clear()
         Drawer.loadImage(bufferedImage, false, crosshair)
     }
 }

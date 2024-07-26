@@ -4,6 +4,7 @@ import cc.polyfrost.oneconfig.config.core.ConfigUtils
 import cc.polyfrost.oneconfig.events.EventManager
 import cc.polyfrost.oneconfig.events.event.ShutdownEvent
 import cc.polyfrost.oneconfig.libs.eventbus.Subscribe
+import cc.polyfrost.oneconfig.utils.commands.CommandManager
 import net.minecraftforge.common.MinecraftForge
 import net.minecraftforge.fml.common.Mod
 import net.minecraftforge.fml.common.event.FMLInitializationEvent
@@ -34,6 +35,7 @@ object PolyCrosshair {
         ModConfig
         MinecraftForge.EVENT_BUS.register(CrosshairRenderer)
         EventManager.INSTANCE.register(this)
+        CommandManager.INSTANCE.registerCommand(ModCommand())
     }
 
     @Mod.EventHandler
