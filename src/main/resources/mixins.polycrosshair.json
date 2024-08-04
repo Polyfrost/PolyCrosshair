@@ -9,7 +9,9 @@
   "client": [
     "EntityRendererMixin",
     "GuiIngameAccessor",
-    "GuiIngameMixin"
+    "GuiIngameForgeMixin",
+    "GuiIngameMixin",
+    "MinecraftAccessor"
   ],
   "verbose": true
 }
