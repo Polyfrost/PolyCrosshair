@@ -1,49 +1,49 @@
 package org.polyfrost.crosshair.config
 
-import cc.polyfrost.oneconfig.config.annotations.Color
-import cc.polyfrost.oneconfig.config.annotations.Slider
-import cc.polyfrost.oneconfig.config.annotations.Switch
-import cc.polyfrost.oneconfig.config.core.OneColor
+import org.polyfrost.oneconfig.api.config.v1.annotations.Color
+import org.polyfrost.oneconfig.api.config.v1.annotations.Slider
+import org.polyfrost.oneconfig.api.config.v1.annotations.Switch
+import org.polyfrost.polyui.color.PolyColor
 
 class RenderConfig {
 
-    @Switch(name = "Dynamic Color (Overlay)")
+    @Switch(title = "Dynamic Color (Overlay)")
     var dynamicColor = false
 
-    @Switch(name = "Invert Color")
+    @Switch(title = "Invert Color")
     var invertColor = true
 
-    @Slider(name = "Overlay Opacity", min = 0f, max = 100f)
+    @Slider(title = "Overlay Opacity", min = 0f, max = 100f)
     var dynamicOpacity = 100
 
-    @Switch(name = "Hostile")
+    @Switch(title = "Hostile")
     var hostile = false
 
-    @Color(name = "Color")
-    var hostileColor = OneColor(-1)
+    @Color(title = "Color")
+    var hostileColor = PolyColor.WHITE
 
-    @Switch(name = "Passive")
+    @Switch(title = "Passive")
     var passive = false
 
-    @Color(name = "Color")
-    var passiveColor = OneColor(-1)
+    @Color(title = "Color")
+    var passiveColor = PolyColor.WHITE
 
-    @Switch(name = "Players")
+    @Switch(title = "Players")
     var player = false
 
-    @Color(name = "Color")
-    var playerColor = OneColor(-1)
+    @Color(title = "Color")
+    var playerColor = PolyColor.WHITE
 
-    @Switch(name = "Show in F3 (Debug)")
+    @Switch(title = "Show in F3 (Debug)")
     var showInDebug = false
 
-    @Switch(name = "Show in GUIs")
+    @Switch(title = "Show in GUIs")
     var showInGuis = true
 
-    @Switch(name = "Show in Third Person")
+    @Switch(title = "Show in Third Person")
     var showInThirdPerson = true
 
-    @Switch(name = "Show in Spectator Mode")
+    @Switch(title = "Show in Spectator Mode")
     var showInSpectator = false
 
     var didPatcherMigration = false

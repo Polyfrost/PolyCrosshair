@@ -29,9 +29,9 @@ class CrosshairEntry(
     @Button(name = "Transform", text = "Reset", size = 1)
     var transformReset = Runnable {
         runAsync {
-            val img = ModConfig.newCurrentCrosshair.img
-            ModConfig.newCurrentCrosshair.loadFrom(CrosshairEntry())
-            ModConfig.newCurrentCrosshair.img = img
+            val img = PolyCrosshairConfig.newCurrentCrosshair.img
+            PolyCrosshairConfig.newCurrentCrosshair.loadFrom(CrosshairEntry())
+            PolyCrosshairConfig.newCurrentCrosshair.img = img
             save(Drawer.saveFromDrawer(false))
         }
     }

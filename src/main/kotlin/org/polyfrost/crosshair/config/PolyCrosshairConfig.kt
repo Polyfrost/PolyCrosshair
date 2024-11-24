@@ -1,28 +1,30 @@
 @file:Suppress("UnstableAPIUsage")
 package org.polyfrost.crosshair.config
 
-import cc.polyfrost.oneconfig.config.Config
-import cc.polyfrost.oneconfig.config.annotations.*
-import cc.polyfrost.oneconfig.config.core.*
-import cc.polyfrost.oneconfig.config.data.*
-import cc.polyfrost.oneconfig.config.elements.*
 import club.sk1er.patcher.config.OldPatcherConfig
 import org.polyfrost.crosshair.PolyCrosshair
 import org.polyfrost.crosshair.utils.*
+import org.polyfrost.oneconfig.api.config.v1.Config
+import org.polyfrost.oneconfig.api.config.v1.annotations.RadioButton
 import java.lang.reflect.Field
 
-object ModConfig : Config(Mod(PolyCrosshair.NAME, ModType.HUD, "/${PolyCrosshair.MODID}.svg"), "${PolyCrosshair.MODID}/config.json") {
+object PolyCrosshairConfig : Config(
+    "${PolyCrosshair.MODID}.json",
+    "/${PolyCrosshair.MODID}.svg",
+    PolyCrosshair.NAME,
+    Category.QOL
+) {
 
-    @Exclude
     var drawer = HashMap<Int, Int>()
 
-    @DualOption(
-        name = "Mode",
-        left = "Vanilla",
-        right = "Custom",
-        size = 2
+    val isCustom: Boolean
+        get() = mode == 1
+
+    @RadioButton(
+        title = "Mode",
+        options = ["Vanilla", "Custom"]
     )
-    var mode = false
+    var mode = 0
 
     @CustomOption
     var newCrosshairs = arrayListOf(CrosshairEntry())

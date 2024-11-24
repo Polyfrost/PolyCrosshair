@@ -20,14 +20,14 @@ class Pixel(val index: Int) : BasicElement(16, 16, ColorPalette.PRIMARY, true, 0
     var color = -1
         set(value) {
             if (value shr 24 == 0) isToggled = false
-            ModConfig.drawer[index] = value
+            PolyCrosshairConfig.drawer[index] = value
             field = value
         }
 
     var lastToggled = false
 
     override fun draw(vg: Long, x: Float, y: Float, inputHandler: InputHandler) {
-        val size = (256 - (ModConfig.canvaSize - 1)) / ModConfig.canvaSize.toFloat()
+        val size = (256 - (PolyCrosshairConfig.canvaSize - 1)) / PolyCrosshairConfig.canvaSize.toFloat()
         posX = index % 32
         posY = index / 32
         val x1 = x + posX * (size + 1)
@@ -40,7 +40,7 @@ class Pixel(val index: Int) : BasicElement(16, 16, ColorPalette.PRIMARY, true, 0
 
     override fun update(x: Float, y: Float, inputHandler: InputHandler) {
         val pos = indexToPos(index)
-        val size = ModConfig.canvaSize
+        val size = PolyCrosshairConfig.canvaSize
         backgroundColor = if (size % 2 == 1 && pos.x == size / 2 && pos.x == pos.y) {
             OneColor("703A3AFF").rgb
         } else if ((pos.x + pos.y) % 2 == 0) {
@@ -51,7 +51,7 @@ class Pixel(val index: Int) : BasicElement(16, 16, ColorPalette.PRIMARY, true, 0
         hovered = inputHandler.isAreaHovered(x - hitBoxX, y - hitBoxY, (width + hitBoxX).toFloat(), (height + hitBoxY).toFloat())
         if (hovered && OneConfigGui.INSTANCE.currentColorSelector == null) {
             if (inputHandler.isMouseDown) {
-                doMirror(true, ModConfig.penColor.rgb)
+                doMirror(true, PolyCrosshairConfig.penColor.rgb)
             }
             if (inputHandler.isMouseDown(1)) {
                 doMirror(false, color)
@@ -60,19 +60,19 @@ class Pixel(val index: Int) : BasicElement(16, 16, ColorPalette.PRIMARY, true, 0
         if (lastToggled != isToggled) {
             lastToggled = isToggled
             if (isToggled) {
-                ModConfig.drawer[index] = color
+                PolyCrosshairConfig.drawer[index] = color
             } else {
-                ModConfig.drawer.remove(index)
+                PolyCrosshairConfig.drawer.remove(index)
             }
         }
         currentColor = if (isToggled) color else backgroundColor
     }
 
     fun doMirror(toggle: Boolean, color: Int) {
-        val mode = ModConfig.mirror
+        val mode = PolyCrosshairConfig.mirror
         set(toggle, color)
         if (mode == 0) return
-        val size = ModConfig.canvaSize
+        val size = PolyCrosshairConfig.canvaSize
 
         val center = (size + 1) / 2f - 1
         val disX = center - posX

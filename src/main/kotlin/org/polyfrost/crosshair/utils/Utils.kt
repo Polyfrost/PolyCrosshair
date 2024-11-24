@@ -2,19 +2,22 @@
 
 package org.polyfrost.crosshair.utils
 
-import cc.polyfrost.oneconfig.images.OneImage
-import cc.polyfrost.oneconfig.utils.*
+import dev.deftu.clipboard.BufferedClipboardImage
+import dev.deftu.clipboard.Clipboard
 import org.polyfrost.crosshair.PolyCrosshair
 import org.polyfrost.crosshair.config.CrosshairEntry
-import org.polyfrost.crosshair.config.ModConfig
+import org.polyfrost.crosshair.config.PolyCrosshairConfig
+import org.polyfrost.oneconfig.api.ui.v1.Notifications
+import org.polyfrost.oneconfig.utils.v1.OneImage
 import java.awt.Image
 import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.util.*
 import javax.imageio.ImageIO
+import kotlin.io.path.Path
 
-fun notify(message: String) = Notifications.INSTANCE.send(PolyCrosshair.NAME, message)
+fun notify(message: String) = Notifications.enqueue(Notifications.Type.Info, PolyCrosshair.NAME, message)
 
 fun posToIndex(x: Int, y: Int): Int =
     x + y * 32
@@ -25,28 +28,39 @@ fun indexToPos(index: Int): Pos =
 fun export(image: BufferedImage?, name: String): String {
     image ?: return ""
     val path = PolyCrosshair.path + name + ".png"
-    OneImage(image).save(path)
+    OneImage(image).save(Path(path))
     return path
 }
 
 fun save(image: OneImage?) {
     image ?: return
     val base64 = toBase64(image.image)
-    ModConfig.newCrosshairs.forEach {
+    PolyCrosshairConfig.newCrosshairs.forEach {
         if (it.img == base64) {
-            it.loadFrom(ModConfig.newCurrentCrosshair)
+            it.loadFrom(PolyCrosshairConfig.newCurrentCrosshair)
             return
         }
     }
     val entry = CrosshairEntry()
-    entry.loadFrom(ModConfig.newCurrentCrosshair)
+    entry.loadFrom(PolyCrosshairConfig.newCurrentCrosshair)
     entry.img = base64
-    ModConfig.newCrosshairs.add(entry)
+    PolyCrosshairConfig.newCrosshairs.add(entry)
 }
 
 fun toBufferedImage(string: String): BufferedImage? {
     val bytes = Base64.getDecoder().decode(string)
     return ImageIO.read(ByteArrayInputStream(bytes))
+}
+
+fun toBufferedImage(image: Image): BufferedImage {
+    if (image is BufferedImage) return image
+
+    val bufferedImage = BufferedImage(image.getWidth(null), image.getHeight(null), BufferedImage.TYPE_INT_ARGB)
+    val graphics = bufferedImage.createGraphics()
+    graphics.drawImage(image, 0, 0, null)
+    graphics.dispose()
+
+    return bufferedImage
 }
 
 fun toBase64(image: BufferedImage): String {
@@ -59,6 +73,6 @@ fun toBase64(image: BufferedImage): String {
 
 fun copy(image: Image?) {
     image ?: return
-    IOUtils.copyImageToClipboard(image)
+    Clipboard.getInstance().image = BufferedClipboardImage.toClipboardImage(toBufferedImage(image))
     notify("Crosshair has been copied to clipboard.")
 }

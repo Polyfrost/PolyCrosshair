@@ -1,10 +1,6 @@
 @file:Suppress("UnstableAPIUsage")
 package org.polyfrost.crosshair.render
 
-import cc.polyfrost.oneconfig.config.core.OneColor
-import cc.polyfrost.oneconfig.images.OneImage
-import cc.polyfrost.oneconfig.libs.universal.UResolution
-import cc.polyfrost.oneconfig.utils.dsl.mc
 import net.minecraft.client.gui.Gui
 import net.minecraft.client.renderer.EntityRenderer
 import net.minecraft.client.renderer.GlStateManager as GL
@@ -20,8 +16,13 @@ import net.minecraftforge.client.event.RenderGameOverlayEvent
 import net.minecraftforge.client.event.TextureStitchEvent
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
 import org.lwjgl.opengl.GL11
-import org.polyfrost.crosshair.config.ModConfig
+import org.polyfrost.crosshair.config.PolyCrosshairConfig
 import org.polyfrost.crosshair.mixin.GuiIngameAccessor
+import org.polyfrost.oneconfig.utils.v1.OneImage
+import org.polyfrost.polyui.color.PolyColor
+import org.polyfrost.polyui.color.argb
+import org.polyfrost.universal.UResolution
+import org.polyfrost.utils.v1.dsl.mc
 import java.awt.image.BufferedImage
 import kotlin.math.ceil
 
@@ -67,7 +68,7 @@ object CrosshairRenderer {
 
     @SubscribeEvent
     fun cancel(event: RenderGameOverlayEvent.Pre) {
-        if (event.type != RenderGameOverlayEvent.ElementType.CROSSHAIRS || !ModConfig.enabled) return
+        if (event.type != RenderGameOverlayEvent.ElementType.CROSSHAIRS || !PolyCrosshairConfig.enabled) return
         GL.enableAlpha()
         event.isCanceled = true
     }
@@ -78,14 +79,14 @@ object CrosshairRenderer {
     }
 
     fun drawCrosshair(entityRenderer: EntityRenderer) {
-        if (!ModConfig.enabled) return
+        if (!PolyCrosshairConfig.enabled) return
         if ((mc.ingameGUI as? GuiIngameAccessor)?.shouldShowCrosshair() == false) return
 
         entityRenderer.setupOverlayRendering()
         GL.pushMatrix()
         GL.tryBlendFuncSeparate(770, 771, 1, 0)
         GL.enableBlend()
-        val renderConfig = ModConfig.renderConfig
+        val renderConfig = PolyCrosshairConfig.renderConfig
         if (renderConfig.invertColor) {
             GL.tryBlendFuncSeparate(GL11.GL_ONE_MINUS_DST_COLOR, GL11.GL_ONE_MINUS_SRC_COLOR, 1, 0)
         }
@@ -93,23 +94,23 @@ object CrosshairRenderer {
 
         GL11.glColor4f(1f, 1f, 1f, 1f)
 
-        (if (ModConfig.mode) textureLocation else vanillaLocation).let { mc.textureManager.bindTexture(it) }
+        (if (PolyCrosshairConfig.isCustom) textureLocation else vanillaLocation).let { mc.textureManager.bindTexture(it) }
         val mcScale = UResolution.scaleFactor.toFloat()
         GL.scale(1 / mcScale, 1 / mcScale, 1f)
-        val crosshair = ModConfig.newCurrentCrosshair
+        val crosshair = PolyCrosshairConfig.newCurrentCrosshair
         GL.translate(crosshair.offsetX.toFloat(), crosshair.offsetY.toFloat(), 0f)
         GL.translate((UResolution.windowWidth / 2).toFloat(), (UResolution.windowHeight / 2).toFloat(), 0f)
         GL.rotate(crosshair.rotation.toFloat(), 0f, 0f, 1f)
         val scale = crosshair.scale / 100f
-        val textureSize = if (ModConfig.mode) drawingImage.width else 16
+        val textureSize = if (PolyCrosshairConfig.isCustom) drawingImage.width else 16
         val size = ceil(textureSize * mcScale * scale).toInt()
-        val translation = if (ModConfig.mode) if (crosshair.centered) (-size / 2).toFloat() else (-(size - mcScale) / 2).toInt().toFloat() else ceil(-7 * mcScale * scale)
+        val translation = if (PolyCrosshairConfig.isCustom) if (crosshair.centered) (-size / 2).toFloat() else (-(size - mcScale) / 2).toInt().toFloat() else ceil(-7 * mcScale * scale)
         GL.translate(translation, translation, 0f)
         Gui.drawScaledCustomSizeModalRect(0, 0, 0f, 0f, textureSize, textureSize, size, size, textureSize.toFloat(), textureSize.toFloat())
         val c = getColor()
-        if (c.rgb != -1) {
-            if (ModConfig.mode) mc.textureManager.bindTexture(whiteTextureLocation)
-            GL11.glColor4f(c.red / 255f, c.green / 255f, c.blue / 255f, renderConfig.dynamicOpacity / 100f)
+        if (c.rgba != -1) {
+            if (PolyCrosshairConfig.isCustom) mc.textureManager.bindTexture(whiteTextureLocation)
+            GL11.glColor4f(c.r / 255f, c.g / 255f, c.b / 255f, renderConfig.dynamicOpacity / 100f)
             Gui.drawScaledCustomSizeModalRect(0, 0, 0f, 0f, textureSize, textureSize, size, size, textureSize.toFloat(), textureSize.toFloat())
         }
         if (renderConfig.invertColor) {
@@ -120,19 +121,17 @@ object CrosshairRenderer {
         GL.popMatrix()
     }
 
-    val WHITE = OneColor(-1)
-
-    private fun getColor(): OneColor {
-        with(ModConfig.renderConfig) {
-            val entity = mc.objectMouseOver?.entityHit ?: return WHITE
-            if (entity.isInvisible) return WHITE
+    private fun getColor(): PolyColor {
+        with(PolyCrosshairConfig.renderConfig) {
+            val entity = mc.objectMouseOver?.entityHit ?: return PolyColor.WHITE
+            if (entity.isInvisible) return PolyColor.WHITE
             if (dynamicColor) {
                 if (hostile && entity is IMob) return hostileColor
                 if (passive && (entity is EntityVillager || entity is EntityAnimal || entity is EntityAmbientCreature || entity is EntityWaterMob)) return passiveColor
                 if (player && entity is EntityPlayer) return playerColor
             }
         }
-        return WHITE
+        return PolyColor.WHITE
     }
 
 }

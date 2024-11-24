@@ -2,26 +2,13 @@
 
 package org.polyfrost.crosshair.config
 
-import cc.polyfrost.oneconfig.config.core.OneColor
-import cc.polyfrost.oneconfig.config.elements.BasicOption
-import cc.polyfrost.oneconfig.gui.OneConfigGui
-import cc.polyfrost.oneconfig.gui.animations.Animation
-import cc.polyfrost.oneconfig.gui.animations.DummyAnimation
-import cc.polyfrost.oneconfig.gui.animations.EaseOutQuad
-import cc.polyfrost.oneconfig.gui.elements.BasicButton
-import cc.polyfrost.oneconfig.images.OneImage
-import cc.polyfrost.oneconfig.libs.universal.UKeyboard
-import cc.polyfrost.oneconfig.renderer.scissor.ScissorHelper
-import cc.polyfrost.oneconfig.utils.IOUtils
-import cc.polyfrost.oneconfig.utils.InputHandler
-import cc.polyfrost.oneconfig.utils.color.ColorPalette
-import cc.polyfrost.oneconfig.utils.dsl.mc
-import cc.polyfrost.oneconfig.utils.dsl.nanoVGHelper
-import cc.polyfrost.oneconfig.utils.dsl.runAsync
+import dev.deftu.clipboard.BufferedClipboardImage
+import dev.deftu.clipboard.Clipboard
 import org.polyfrost.crosshair.elements.ColorSelector
 import org.polyfrost.crosshair.elements.PresetElement
 import org.polyfrost.crosshair.render.CrosshairRenderer
 import org.polyfrost.crosshair.utils.*
+import org.polyfrost.oneconfig.utils.v1.dsl.runAsync
 import java.awt.Image
 import java.awt.Toolkit
 import java.awt.datatransfer.DataFlavor
@@ -59,28 +46,31 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
     var inArea = false
 
     init {
-        toBufferedImage(ModConfig.newCurrentCrosshair.img)?.let { it ->
+        toBufferedImage(PolyCrosshairConfig.newCurrentCrosshair.img)?.let { it ->
             if (it.width == 0 || it.height == 0) return@let
-            loadImage(it, false, ModConfig.newCurrentCrosshair)?.let {
+            loadImage(it, false, PolyCrosshairConfig.newCurrentCrosshair)?.let {
                 CrosshairRenderer.updateTexture(it)
             }
         }
+
         resetButton.setClickAction {
             runAsync {
                 reset()
             }
         }
+
         saveButton.setClickAction {
             runAsync {
                 save(saveFromDrawer(false))
             }
         }
+
         exportButton.setClickAction {
             runAsync {
                 saveFromDrawer(false)?.let { copy(it.image) }
             }
-
         }
+
         importButton.setClickAction {
             runAsync {
                 var image: Image? = null
@@ -97,9 +87,11 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
                 } catch (_: Exception) {
 
                 }
+
                 if (image == null) {
-                    image = IOUtils.getImageFromClipboard()
+                    image = BufferedClipboardImage.toBufferedImage(Clipboard.getInstance().image)
                 }
+
                 if (image != null) {
                     loadImage(image!!.toBufferedImage(), true)
                 } else {
@@ -121,13 +113,13 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
             moveQueue.clear()
         }
 
-        for (posY in 0..<ModConfig.canvaSize) {
-            for (posX in 0..<ModConfig.canvaSize) {
+        for (posY in 0..<PolyCrosshairConfig.canvaSize) {
+            for (posX in 0..<PolyCrosshairConfig.canvaSize) {
                 pixels[posToIndex(posX, posY)].draw(vg, x.toFloat(), y.toFloat(), inputHandler)
             }
         }
 
-        if (ModConfig.canvaSize % 2 == 0) {
+        if (PolyCrosshairConfig.canvaSize % 2 == 0) {
             nanoVGHelper.drawLine(vg, (x + 128).toFloat(), (y + 108).toFloat(), (x + 128).toFloat(), (y + 148).toFloat(), 1f, OneColor("703A3AFF").rgb)
             nanoVGHelper.drawLine(vg, (x + 108).toFloat(), (y + 128).toFloat(), (x + 148).toFloat(), (y + 128).toFloat(), 1f, OneColor("703A3AFF").rgb)
         }
@@ -139,14 +131,14 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
         exportButton.draw(vg, (x + 270).toFloat(), y.toFloat(), inputHandler)
 
         for (i in removeQueue) {
-            ModConfig.newCrosshairs.remove(i)
+            PolyCrosshairConfig.newCrosshairs.remove(i)
             getElement(i).onRemove()
             elements.remove(i)
         }
 
         removeQueue.clear()
 
-        val height = (149 + 16) * ceil(ModConfig.newCrosshairs.size / 4f) - 16
+        val height = (149 + 16) * ceil(PolyCrosshairConfig.newCrosshairs.size / 4f) - 16
 
         if (height <= 256) scrollAnimation = DummyAnimation(0f)
 
@@ -178,12 +170,12 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
             }
         }
 
-        val size = ModConfig.newCrosshairs.size
+        val size = PolyCrosshairConfig.newCrosshairs.size
 
         for (i in 0..<size) {
             val posX = i % 4
             val posY = i / 4
-            getElement(ModConfig.newCrosshairs[i]).draw(vg, x + 349 + posX * 165f, y + posY * 165f + scroll, inputHandler)
+            getElement(PolyCrosshairConfig.newCrosshairs[i]).draw(vg, x + 349 + posX * 165f, y + posY * 165f + scroll, inputHandler)
         }
 
         ScissorHelper.INSTANCE.resetScissor(vg, scissor)
@@ -211,10 +203,10 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
             notify("$message (width: ${loadedImage.width} height: ${loadedImage.height}).")
             return null
         }
-        ModConfig.newCurrentCrosshair.loadFrom(entry)
-        ModConfig.canvaSize = loadedImage.height
-        for (posY in 0..<ModConfig.canvaSize) {
-            for (posX in 0..<ModConfig.canvaSize) {
+        PolyCrosshairConfig.newCurrentCrosshair.loadFrom(entry)
+        PolyCrosshairConfig.canvaSize = loadedImage.height
+        for (posY in 0..<PolyCrosshairConfig.canvaSize) {
+            for (posX in 0..<PolyCrosshairConfig.canvaSize) {
                 val c = loadedImage.image.getRGB(posX, posY)
                 pixels[posToIndex(posX, posY)].isToggled = c shr 24 != 0
                 pixels[posToIndex(posX, posY)].color = c
@@ -225,14 +217,14 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
     }
 
     fun saveFromDrawer(close: Boolean): OneImage? {
-        val image = OneImage(ModConfig.canvaSize, ModConfig.canvaSize)
-        if (ModConfig.drawer.isEmpty() && !close) {
+        val image = OneImage(PolyCrosshairConfig.canvaSize, PolyCrosshairConfig.canvaSize)
+        if (PolyCrosshairConfig.drawer.isEmpty() && !close) {
             notify("Crosshair can't be empty.")
             return null
         }
-        for (i in ModConfig.drawer) {
+        for (i in PolyCrosshairConfig.drawer) {
             val pos = indexToPos(i.key)
-            if (pos.x >= ModConfig.canvaSize || pos.y >= ModConfig.canvaSize) {
+            if (pos.x >= PolyCrosshairConfig.canvaSize || pos.y >= PolyCrosshairConfig.canvaSize) {
                 pixels[i.key].isToggled = false
                 continue
             }
@@ -251,12 +243,12 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
 
     fun move(x: Int, y: Int) {
         val newPositions = HashMap<Pos, Int>()
-        for (i in ModConfig.drawer) {
+        for (i in PolyCrosshairConfig.drawer) {
             val pos = indexToPos(i.key)
             val posX = pos.x + x
             val posY = pos.y + y
             pixels[i.key].isToggled = false
-            if (posX !in 0..<ModConfig.canvaSize || posY !in 0..<ModConfig.canvaSize) continue
+            if (posX !in 0..<PolyCrosshairConfig.canvaSize || posY !in 0..<PolyCrosshairConfig.canvaSize) continue
             newPositions[Pos(posX, posY)] = i.value
         }
         for (i in newPositions) {
@@ -280,7 +272,7 @@ object Drawer : BasicOption(null, null, "", "", "", "", 2) {
 
     override fun finishUpAndClose() {
         val image = saveFromDrawer(true) ?: return
-        ModConfig.newCurrentCrosshair.img = toBase64(image.image)
+        PolyCrosshairConfig.newCurrentCrosshair.img = toBase64(image.image)
         CrosshairRenderer.updateTexture(image)
     }
 
