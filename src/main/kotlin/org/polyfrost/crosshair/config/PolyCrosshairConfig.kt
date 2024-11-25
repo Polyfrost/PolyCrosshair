@@ -5,8 +5,11 @@ import club.sk1er.patcher.config.OldPatcherConfig
 import org.polyfrost.crosshair.PolyCrosshair
 import org.polyfrost.crosshair.utils.*
 import org.polyfrost.oneconfig.api.config.v1.Config
+import org.polyfrost.oneconfig.api.config.v1.Property
+import org.polyfrost.oneconfig.api.config.v1.annotations.Dropdown
+import org.polyfrost.oneconfig.api.config.v1.annotations.Include
 import org.polyfrost.oneconfig.api.config.v1.annotations.RadioButton
-import java.lang.reflect.Field
+import org.polyfrost.oneconfig.api.config.v1.annotations.Slider
 
 object PolyCrosshairConfig : Config(
     "${PolyCrosshair.MODID}.json",
@@ -14,8 +17,6 @@ object PolyCrosshairConfig : Config(
     PolyCrosshair.NAME,
     Category.QOL
 ) {
-
-    var drawer = HashMap<Int, Int>()
 
     val isCustom: Boolean
         get() = mode == 1
@@ -26,49 +27,47 @@ object PolyCrosshairConfig : Config(
     )
     var mode = 0
 
-    @CustomOption
-    var newCrosshairs = arrayListOf(CrosshairEntry())
-
-    var penColor = OneColor(-1)
+    @Crosshairs
+    var crosshairs = mutableListOf(CrosshairEntry(CrosshairEntry.DEFAULT))
 
     @Dropdown(
-        name = "Mirror",
+        title = "Mirror",
         options = ["Off", "Horizontal", "Vertical", "Quadrant"]
     )
     var mirror = 0
 
     @Slider(
-        name = "Canva Size",
+        title = "Canva Size",
         min = 15f, max = 32f
     )
     var canvaSize = 15
         get() = field.coerceIn(15, 32)
 
-    var newCurrentCrosshair = CrosshairEntry()
+    var currentCustomCrosshair = CrosshairEntry(CrosshairEntry.DEFAULT)
 
     var renderConfig = RenderConfig()
 
     init {
-        initialize()
-        this.generateOptionList(newCurrentCrosshair, mod.defaultPage, this.mod, false)
-        this.generateOptionList(renderConfig, mod.defaultPage, this.mod, false)
+//        this.generateOptionList(currentCustomCrosshair, mod.defaultPage, this.mod, false)
+//        this.generateOptionList(renderConfig, mod.defaultPage, this.mod, false)
         var options = listOf("hostile", "passive", "player", "hostileColor", "passiveColor", "playerColor", "dynamicOpacity")
-        for (i in options) {
-            hideIf(i) { !renderConfig.dynamicColor }
+        for (option in options) {
+            getProperty(option).addDisplayCondition { if (renderConfig.dynamicColor) Property.Display.HIDDEN else Property.Display.SHOWN }
         }
+
+        getProperty("crosshairs").addMetadata("size", canvaSize)
+
         addDependency(options[3], options[0])
         addDependency(options[4], options[1])
         addDependency(options[5], options[2])
         addDependency("centered", "mode")
         options = listOf("mirror", "canvaSize")
-        options.forEach { hideIf(it) { !mode } }
-        addListener("canvaSize") {
-            for (i in drawer) {
-                val pos = indexToPos(i.key)
-                if (pos.x >= canvaSize || pos.y >= canvaSize) {
-                    Drawer.pixels[i.key].isToggled = false
-                }
-            }
+        options.forEach {
+            getProperty(it).addDisplayCondition { if (mode == 0) Property.Display.HIDDEN else Property.Display.SHOWN }
+        }
+
+        addCallback("canvaSize") {
+            getProperty("crosshairs").addMetadata("size", canvaSize)
         }
 
         if (!renderConfig.didPatcherMigration) {
@@ -97,16 +96,25 @@ object PolyCrosshairConfig : Config(
         }
     }
 
-    override fun getCustomOption(
-        field: Field,
-        annotation: CustomOption,
-        page: OptionPage,
-        mod: Mod,
-        migrate: Boolean,
-    ): BasicOption? {
-        Drawer.addHideCondition { !mode }
-        ConfigUtils.getSubCategory(page, "General", "").options.add(Drawer)
-        return null
+//    override fun getCustomOption(
+//        field: Field,
+//        annotation: CustomOption,
+//        page: OptionPage,
+//        mod: Mod,
+//        migrate: Boolean,
+//    ): BasicOption? {
+//        Drawer.addHideCondition { !mode }
+//        ConfigUtils.getSubCategory(page, "General", "").options.add(Drawer)
+//        return null
+//    }
+
+    enum class MirrorMode {
+
+        OFF,
+        HORIZONTAL,
+        VERTICAL,
+        QUADRANT
+
     }
 
 }

@@ -22,7 +22,8 @@ object PolyCrosshair {
     const val NAME = "@MOD_NAME@"
     const val VERSION = "@MOD_VERSION@"
 
-    val path = "${ConfigUtils.getProfileDir().absolutePath}/${MODID}/caches/"
+//    val path = "${ConfigUtils.getProfileDir().absolutePath}/${MODID}/caches/"
+    val path = "config/${MODID}/caches/"
 
     val dir = File(path)
 

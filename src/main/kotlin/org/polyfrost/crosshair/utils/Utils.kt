@@ -35,16 +35,16 @@ fun export(image: BufferedImage?, name: String): String {
 fun save(image: OneImage?) {
     image ?: return
     val base64 = toBase64(image.image)
-    PolyCrosshairConfig.newCrosshairs.forEach {
-        if (it.img == base64) {
-            it.loadFrom(PolyCrosshairConfig.newCurrentCrosshair)
+    PolyCrosshairConfig.crosshairs.forEach {
+        if (it.base64 == base64) {
+            it.loadFrom(PolyCrosshairConfig.currentCustomCrosshair)
             return
         }
     }
-    val entry = CrosshairEntry()
-    entry.loadFrom(PolyCrosshairConfig.newCurrentCrosshair)
-    entry.img = base64
-    PolyCrosshairConfig.newCrosshairs.add(entry)
+    val entry = CrosshairEntry(CrosshairEntry.DEFAULT)
+    entry.loadFrom(PolyCrosshairConfig.currentCustomCrosshair)
+    entry.base64 = base64
+    PolyCrosshairConfig.crosshairs.add(entry)
 }
 
 fun toBufferedImage(string: String): BufferedImage? {
