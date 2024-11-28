@@ -36,10 +36,7 @@ toolkitLoomHelper {
 
 // Configures the output directory for when building from the `src/resources` directory.
 sourceSets {
-    val dummy by creating
     main {
-        dummy.compileClasspath += compileClasspath
-        compileClasspath += dummy.output
         output.setResourcesDir(java.classesDirectory)
     }
 }
@@ -48,6 +45,7 @@ sourceSets {
 repositories {
     mavenLocal()
     maven("https://repo.polyfrost.org/releases")
+    maven("https://repo.polyfrost.org/snapshots")
 }
 
 // Configures the libraries/dependencies for your mod.
