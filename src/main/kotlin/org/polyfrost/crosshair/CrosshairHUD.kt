@@ -8,6 +8,8 @@ import org.polyfrost.polyui.unit.Vec2
 import org.polyfrost.polyui.utils.getResourceStream
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
+import kotlin.io.path.exists
 
 object CrosshairHUD : Hud<Image>() {
     @Switch(title = "Show in F3")
@@ -23,24 +25,39 @@ object CrosshairHUD : Hud<Image>() {
     private var showInThirdPerson = true
 
     @Include
-    var currentCrosshair: String = "null"
+    var currentCrosshair: String? = null
+        set(value) {
+            field = value
+            setCrosshair(value)
+        }
+
+    private val target = Paths.get("polycrosshair.png")
 
     override fun category() = Category.COMBAT
 
-    override fun create(): Image {
-        if (currentCrosshair == "null") {
-            Files.copy(getResourceStream("assets/polycrosshair/default.png"), Paths.get("polycrosshair.png"))
-        } else {
-            Files.copy(Paths.get(currentCrosshair), Paths.get("polycrosshair.png"))
-        }
-        return Image("polycrosshair.png")
+    override fun initialize() {
+        setCrosshair(currentCrosshair)
     }
 
-    fun reload() {
-        get().renderer.delete(get().image)
+    override fun hasBackground() = false
+
+    override fun create() = Image(target.toUri().toString())
+
+    private fun setCrosshair(crosshair: String?) {
+        if (crosshair.isNullOrEmpty() || !Paths.get(crosshair).exists()) {
+            Files.copy(getResourceStream("assets/polycrosshair/default.png"), target, StandardCopyOption.REPLACE_EXISTING)
+        } else Files.copy(Paths.get(crosshair), target, StandardCopyOption.REPLACE_EXISTING)
+        val it = get()
+        if (!it.initialized) return
+        it.renderer.delete(it.image)
+        val size = it.polyUI.size
+        it.x = size.x / 2f - it.size.x / 2f
+        it.y = size.y / 2f - it.size.y / 2f
     }
 
     override fun defaultPosition() = Vec2(1920f / 2f - 7f, 1080f / 2f - 7f)
+
+    override fun multipleInstancesAllowed() = false
 
     override fun id() = "polycrosshair.json"
 

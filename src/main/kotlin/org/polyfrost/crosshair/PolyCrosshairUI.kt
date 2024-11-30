@@ -91,7 +91,7 @@ fun open() {
             ),
             Group(
                 Text("v2.0.0").setPalette { text.secondary },
-                Image("assets/oneconfig/ico/close.svg").onInit { size = size.coerceAtLeast(24f by 24f) }
+                Image("assets/oneconfig/ico/close.svg").onInit { size = Vec2(24f, 24f) }
                     .setDestructivePalette().withStates().onClick {
                         // will save the crosshair
                         needsToSave = true
