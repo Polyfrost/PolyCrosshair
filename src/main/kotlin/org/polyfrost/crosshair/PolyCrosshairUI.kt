@@ -67,12 +67,14 @@ private var currentCard: Group? = null
             null
         }
         val size = img?.width ?: canvasSize
-        canvasContainer[0] = genCanvas(size, colorData = img?.getRGB(0, 0, size, size, null, 0, size))
+        val cdata = img?.getRGB(0, 0, size, size, null, 0, size) ?: intArrayOf(size * size)
+        canvasContainer[0] = genCanvas(size, colorData = cdata)
         crosshairName.text = name
         canvasSize = size
         ignored = true
         canvasSizeDrawable.text = size.toString()
         CrosshairHUD.currentCrosshair = path.toUri().toString()
+        CrosshairHUD.setCrosshair(cdata, size)
         value[0].setPalette { brand.fg }
         field = value
     }
