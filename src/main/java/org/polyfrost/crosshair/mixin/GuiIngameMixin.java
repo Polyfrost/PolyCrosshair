@@ -8,8 +8,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(GuiIngame.class)
 public class GuiIngameMixin {
-    @Inject(method = "showCrosshair", at = @At("HEAD"), cancellable = true)
+    @Inject(method = "showCrosshair", at = @At("HEAD"))
     private void check(CallbackInfoReturnable<Boolean> cir) {
-        cir.setReturnValue(false);
+        //cir.setReturnValue(false);
     }
 }

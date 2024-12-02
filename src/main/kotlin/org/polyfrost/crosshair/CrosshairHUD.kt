@@ -1,8 +1,14 @@
 package org.polyfrost.crosshair
 
+import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.Gui
+import net.minecraft.client.renderer.Tessellator
+import net.minecraft.client.renderer.texture.DynamicTexture
 import net.minecraft.client.renderer.texture.TextureUtil
+import net.minecraft.client.renderer.vertex.DefaultVertexFormats
 import org.lwjgl.opengl.GL11
+import org.lwjgl.opengl.GL11.*
+import org.polyfrost.crosshair.mixin.GuiIngameAccessor
 import org.polyfrost.oneconfig.api.config.v1.annotations.Include
 import org.polyfrost.oneconfig.api.config.v1.annotations.Switch
 import org.polyfrost.oneconfig.api.hud.v1.LegacyHud
@@ -52,31 +58,44 @@ object CrosshairHUD : LegacyHud() {
         val img = if (currentCrosshair.isNullOrEmpty() || !target.exists()) ImageIO.read(getResourceStream("assets/polycrosshair/default.png"))
         else ImageIO.read(target.inputStream())
         setCrosshair(img.getRGB(0, 0, img.width, img.height, null, 0, img.width), img.width)
+        DynamicTexture(img)
     }
 
     override fun hasBackground() = false
 
     override fun render(stack: UMatrixStack, x: Float, y: Float, scaleX: Float, scaleY: Float) {
-        //val mc = Minecraft.getMinecraft()
-        //if ((mc.ingameGUI as? GuiIngameAccessor)?.shouldShowCrosshair() == false) return
+        val mc = Minecraft.getMinecraft()
+        if (!(mc.ingameGUI as GuiIngameAccessor).shouldShowCrosshair()) return
 
-        GL.pushMatrix()
-        GL.enableBlend()
         GL.enableAlpha()
+        GL.enableBlend()
         GL.bindTexture(id)
-        GL.tryBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, 1, 0)
         GL.color(1f, 1f, 1f, 1f)
         val mcScale = UResolution.scaleFactor.toFloat()
-        GL.scale(1f / mcScale, 1f / mcScale, 1f)
-        val texSizeI = texSize.toInt()
-        val size = (texSize * cl1(scaleX, scaleY) * mcScale).toInt()
-        Gui.drawScaledCustomSizeModalRect((x / mcScale).toInt(), (y / mcScale).toInt(), 0f, 0f, texSizeI, texSizeI, size, size, texSize, texSize)
-        GL.popMatrix()
+        GL.tryBlendFuncSeparate(GL_ONE_MINUS_DST_COLOR, GL_ONE_MINUS_SRC_COLOR, 1, 0)
+
+        val tesellator = Tessellator.getInstance()
+        val renderer = tesellator.worldRenderer
+        renderer.begin(GL_QUADS, DefaultVertexFormats.POSITION_TEX)
+        val tex = texSize.toDouble()
+        val left = (0).toDouble()
+        val top = (0).toDouble()
+        val right = (left + texSize * scaleX)
+        val bottom = (top + texSize * scaleY)
+        renderer.pos(left, bottom, 0.0).tex(0.0, tex).endVertex()
+        renderer.pos(right, bottom, 0.0).tex(tex, tex).endVertex()
+        renderer.pos(right, top, 0.0).tex(tex, 0.0).endVertex()
+        renderer.pos(left, top, 0.0).tex(0.0, 0.0).endVertex()
+        tesellator.draw()
+//        Gui.drawScaledCustomSizeModalRect(x.toInt(), y.toInt(), 0f, 0f, texSize.toInt(), texSize.toInt(), texSize.toInt(), texSize.toInt(), texSize, texSize)
+        GL.tryBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, 1, 0)
+        GL.disableBlend()
     }
 
 
     fun setCrosshair(cdata: IntArray, size: Int) {
         texSize = size.toFloat()
+        TextureUtil.allocateTexture(id, size, size)
         TextureUtil.uploadTexture(id, cdata, size, size)
     }
 
