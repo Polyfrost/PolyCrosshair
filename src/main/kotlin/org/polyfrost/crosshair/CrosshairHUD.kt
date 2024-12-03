@@ -1,19 +1,16 @@
 package org.polyfrost.crosshair
 
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.Gui
 import net.minecraft.client.renderer.Tessellator
 import net.minecraft.client.renderer.texture.DynamicTexture
 import net.minecraft.client.renderer.texture.TextureUtil
 import net.minecraft.client.renderer.vertex.DefaultVertexFormats
-import org.lwjgl.opengl.GL11
 import org.lwjgl.opengl.GL11.*
 import org.polyfrost.crosshair.mixin.GuiIngameAccessor
 import org.polyfrost.oneconfig.api.config.v1.annotations.Include
 import org.polyfrost.oneconfig.api.config.v1.annotations.Switch
 import org.polyfrost.oneconfig.api.hud.v1.LegacyHud
 import org.polyfrost.polyui.unit.Vec2
-import org.polyfrost.polyui.utils.cl1
 import org.polyfrost.polyui.utils.getResourceStream
 import org.polyfrost.universal.UMatrixStack
 import org.polyfrost.universal.UResolution
@@ -71,23 +68,21 @@ object CrosshairHUD : LegacyHud() {
         GL.enableBlend()
         GL.bindTexture(id)
         GL.color(1f, 1f, 1f, 1f)
-        val mcScale = UResolution.scaleFactor.toFloat()
         GL.tryBlendFuncSeparate(GL_ONE_MINUS_DST_COLOR, GL_ONE_MINUS_SRC_COLOR, 1, 0)
 
         val tesellator = Tessellator.getInstance()
         val renderer = tesellator.worldRenderer
         renderer.begin(GL_QUADS, DefaultVertexFormats.POSITION_TEX)
-        val tex = texSize.toDouble()
-        val left = (0).toDouble()
-        val top = (0).toDouble()
-        val right = (left + texSize * scaleX)
-        val bottom = (top + texSize * scaleY)
-        renderer.pos(left, bottom, 0.0).tex(0.0, tex).endVertex()
-        renderer.pos(right, bottom, 0.0).tex(tex, tex).endVertex()
-        renderer.pos(right, top, 0.0).tex(tex, 0.0).endVertex()
+        val mcScale = UResolution.scaleFactor
+        val left = x / mcScale
+        val top = y / mcScale
+        val right = (left + (texSize * scaleX))
+        val bottom = (top + (texSize * scaleY))
+        renderer.pos(left, bottom, 0.0).tex(0.0, 1.0).endVertex()
+        renderer.pos(right, bottom, 0.0).tex(1.0, 1.0).endVertex()
+        renderer.pos(right, top, 0.0).tex(1.0, 0.0).endVertex()
         renderer.pos(left, top, 0.0).tex(0.0, 0.0).endVertex()
         tesellator.draw()
-//        Gui.drawScaledCustomSizeModalRect(x.toInt(), y.toInt(), 0f, 0f, texSize.toInt(), texSize.toInt(), texSize.toInt(), texSize.toInt(), texSize, texSize)
         GL.tryBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, 1, 0)
         GL.disableBlend()
     }
