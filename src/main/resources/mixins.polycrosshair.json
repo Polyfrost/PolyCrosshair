@@ -7,7 +7,7 @@
     "maxShiftBy": 5
   },
   "client": [
-    "GuiIngameAccessor",
+    "GuiIngameShowCrosshairMixin",
     "GuiIngameMixin"
   ],
   "verbose": true
