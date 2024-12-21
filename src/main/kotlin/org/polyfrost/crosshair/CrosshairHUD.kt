@@ -32,9 +32,7 @@ object CrosshairHUD : LegacyHud() {
     var currentCrosshair: String? = null
 
     @Button(title = "Open Editor")
-    private val openEditor = Runnable {
-        PolyCrosshairUI.open()
-    }
+    fun openEditor() { PolyCrosshairUI.open() }
 
     val id = GL.generateTexture()
     private var texSize = 15f

@@ -2,6 +2,8 @@ package org.polyfrost.crosshair
 
 import net.minecraftforge.fml.common.Mod
 import net.minecraftforge.fml.common.event.FMLInitializationEvent
+import org.polyfrost.oneconfig.api.commands.v1.CommandManager
+import org.polyfrost.oneconfig.api.commands.v1.factories.annotated.Command
 import org.polyfrost.oneconfig.api.hud.v1.HudManager
 
 @Mod(
@@ -18,6 +20,12 @@ object PolyCrosshair {
     @Mod.EventHandler
     fun onFMLInitialization(event: FMLInitializationEvent) {
         HudManager.register(CrosshairHUD)
+        CommandManager.registerCommand(@Command("polycrosshair") object {
+            @Command
+            private fun main() {
+                PolyCrosshairUI.open()
+            }
+        })
     }
 
 }
