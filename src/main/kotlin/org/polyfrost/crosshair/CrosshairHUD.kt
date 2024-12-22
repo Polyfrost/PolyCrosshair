@@ -2,9 +2,11 @@ package org.polyfrost.crosshair
 
 import net.minecraft.client.renderer.texture.TextureUtil
 import org.polyfrost.oneconfig.api.config.v1.annotations.Button
+import org.polyfrost.oneconfig.api.config.v1.annotations.Color
 import org.polyfrost.oneconfig.api.config.v1.annotations.Include
 import org.polyfrost.oneconfig.api.config.v1.annotations.Switch
 import org.polyfrost.oneconfig.api.hud.v1.LegacyHud
+import org.polyfrost.polyui.color.rgba
 import org.polyfrost.polyui.unit.Vec2
 import org.polyfrost.polyui.utils.getResourceStream
 import org.polyfrost.universal.UMatrixStack
@@ -19,6 +21,9 @@ object CrosshairHUD : LegacyHud() {
     @Switch(title = "Use Vanilla")
     var useVanilla = false
 
+    @Switch(title = "Use Vanilla Blending")
+    var useVanillaBlending = true
+
     @Switch(title = "Show in F3")
     var showInDebug = false
 
@@ -28,6 +33,9 @@ object CrosshairHUD : LegacyHud() {
     @Switch(title = "Show in 3rd Person")
     var showInThirdPerson = true
 
+    @Color(title = "Color")
+    var color = rgba(255, 255, 255)
+
     @Include
     var currentCrosshair: String? = null
 
@@ -35,7 +43,8 @@ object CrosshairHUD : LegacyHud() {
     fun openEditor() { PolyCrosshairUI.open() }
 
     val id = GL.generateTexture()
-    private var texSize = 15f
+    var texSize = 15f
+        private set
 
     override var width: Float
         get() = texSize
