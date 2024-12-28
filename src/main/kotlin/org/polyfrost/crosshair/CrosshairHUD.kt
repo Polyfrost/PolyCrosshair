@@ -37,7 +37,7 @@ object CrosshairHUD : LegacyHud() {
     var color = rgba(255, 255, 255)
 
     @Include
-    var currentCrosshair: String? = null
+    var currentCrosshair: String = "crosshairs/Crosshair_1.png"
 
     @Button(title = "Open Editor")
     fun openEditor() { PolyCrosshairUI.open() }
@@ -59,7 +59,7 @@ object CrosshairHUD : LegacyHud() {
     override fun initialize() {
         val currentCrosshair = currentCrosshair
         val stream = when {
-            currentCrosshair.isNullOrEmpty() -> getResourceStream("assets/polycrosshair/default.png")
+            currentCrosshair.isEmpty() -> getResourceStream("assets/polycrosshair/default.png")
             else -> {
                 val p = Paths.get(currentCrosshair)
                 if (p.exists()) p.inputStream() else getResourceStream("assets/polycrosshair/default.png")

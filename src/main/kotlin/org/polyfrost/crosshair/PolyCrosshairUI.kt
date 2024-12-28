@@ -1,5 +1,8 @@
 package org.polyfrost.crosshair
 
+import dev.deftu.clipboard.Clipboard
+import dev.deftu.clipboard.ClipboardImage
+import org.polyfrost.oneconfig.api.platform.v1.Platform
 import org.polyfrost.oneconfig.api.ui.v1.OCPolyUIBuilder
 import org.polyfrost.polyui.animate.Animations
 import org.polyfrost.polyui.color.PolyColor
@@ -50,9 +53,12 @@ object PolyCrosshairUI {
                 if (needsToSave) {
                     val name = (old[1] as Text).text
                     val path = Paths.get(name.toFileName())
+                    val data = genColorData(canvasContainer[0])
                     ImageIO.write(BufferedImage(canvasSize, canvasSize, BufferedImage.TYPE_INT_ARGB).apply {
-                        setRGB(0, 0, canvasSize, canvasSize, genColorData(canvasContainer[0]), 0, canvasSize)
+                        setRGB(0, 0, canvasSize, canvasSize, data, 0, canvasSize)
                     }, "png", Files.newOutputStream(path))
+                    CrosshairHUD.currentCrosshair = path.toUri().toString()
+                    CrosshairHUD.setCrosshair(data, canvasSize)
                     old.renderer.delete((old[0][0] as Image).image)
                     needsToSave = false
                 }
@@ -74,16 +80,19 @@ object PolyCrosshairUI {
             canvasSize = size
             ignored = true
             canvasSizeDrawable.text = size.toString()
-            CrosshairHUD.currentCrosshair = path.toUri().toString()
-            CrosshairHUD.setCrosshair(cdata, size)
             value[0].setPalette { brand.fg }
             field = value
         }
 
     fun open() {
+        val currentCrosshairName = CrosshairHUD.currentCrosshair.fromFileName()
         var currentCrosshairToSet: Group? = null
         val builder = OCPolyUIBuilder.create()
         builder.blurs().atResolution(1920f, 1080f).backgroundColor(rgba(17, 23, 28)).size(800f, 500f)
+        builder.onClose { _ ->
+            needsToSave = true
+            currentCard = null
+        }
         builder.makeAndOpen(
             Block(
                 Group(
@@ -99,7 +108,7 @@ object PolyCrosshairUI {
                             // will save the crosshair
                             needsToSave = true
                             currentCard = null
-                            // todo close window
+                            Platform.screen().close()
                         }
                 ),
                 size = Vec2(800f, 52f),
@@ -118,7 +127,7 @@ object PolyCrosshairUI {
                             Button("assets/polycrosshair/copy.svg".image(), padding = Vec2(7f, 6f)).onInit {
                                 this[0].size = Vec2(13.25f, 16f)
                             }.onClick {
-                                // todo copy to clipboard
+                                Clipboard.getInstance().image = ClipboardImage(canvasSize, canvasSize, genColorData(canvasContainer[0]).toByteArray())
                             },
                             Image("assets/polycrosshair/trashcan.svg").onInit { this.size = Vec2(14.75f, 16f) }.withStates().setDestructivePalette().onClick {
                                 // generate a new canvas to effectively clear it
@@ -187,8 +196,9 @@ object PolyCrosshairUI {
                         *getCrosshairs().use { s ->
                             s.map {
                                 val fn = it.toUri().toString()
-                                val c = makeLibraryCard(fn.fromFileName(), fn)
-                                if (it.toString() == CrosshairHUD.currentCrosshair) currentCrosshairToSet = c
+                                val fName = fn.fromFileName()
+                                val c = makeLibraryCard(fName, fn)
+                                if (fName == currentCrosshairName) currentCrosshairToSet = c
                                 c
                             }.toTypedArray()
                         },
@@ -380,4 +390,28 @@ object PolyCrosshairUI {
     private fun String.toFileName() = "crosshairs/${this.trim().replace(' ', '_')}.png"
 
     private fun String.fromFileName() = this.substringAfterLast('/').substringBeforeLast('.').replace('_', ' ')
+
+    private fun IntArray.toByteArray(): ByteArray {
+        var c = this[0]
+        var i = 0
+        var j = -8
+        return ByteArray(size * 4) {
+            if (j == 24) {
+                j = -8
+                i++
+                c = this[i]
+            }
+            j += 8
+            (c shr j and 0xFF).toByte()
+        }
+    }
+
+    private fun ByteArray.toIntArray(): IntArray {
+        require(size % 4 == 0) { "Array size must be a multiple of 4" }
+        var i = -4
+        return IntArray(size / 4) {
+            i += 4
+            this[i].toInt() and 0xFF or (this[i + 1].toInt() and 0xFF shl 8) or (this[i + 2].toInt() and 0xFF shl 16) or (this[i + 3].toInt() and 0xFF shl 24)
+        }
+    }
 }
