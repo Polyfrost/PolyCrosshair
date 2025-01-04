@@ -48,11 +48,11 @@ object CrosshairHUD : LegacyHud() {
 
     override var width: Float
         get() = texSize
-        set(value) {}
+        set(_) {}
 
     override var height: Float
         get() = texSize
-        set(value) {}
+        set(_) {}
 
     override fun category() = Category.COMBAT
 
