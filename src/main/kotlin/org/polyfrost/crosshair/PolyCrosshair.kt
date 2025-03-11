@@ -20,7 +20,7 @@ object PolyCrosshair {
     @Mod.EventHandler
     fun onFMLInitialization(event: FMLInitializationEvent) {
         HudManager.register(CrosshairHUD)
-        CommandManager.registerCommand(@Command("polycrosshair") object {
+        CommandManager.register(@Command("polycrosshair") object {
             @Command
             private fun main() {
                 PolyCrosshairUI.open()

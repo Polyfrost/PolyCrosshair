@@ -1,5 +1,6 @@
 package org.polyfrost.crosshair
 
+import dev.deftu.omnicore.client.render.OmniMatrixStack
 import net.minecraft.client.renderer.texture.TextureUtil
 import org.polyfrost.oneconfig.api.config.v1.annotations.Button
 import org.polyfrost.oneconfig.api.config.v1.annotations.Color
@@ -9,7 +10,6 @@ import org.polyfrost.oneconfig.api.hud.v1.LegacyHud
 import org.polyfrost.polyui.color.rgba
 import org.polyfrost.polyui.unit.Vec2
 import org.polyfrost.polyui.utils.getResourceStream
-import org.polyfrost.universal.UMatrixStack
 import java.nio.file.Paths
 import javax.imageio.ImageIO
 import kotlin.io.path.exists
@@ -71,7 +71,7 @@ object CrosshairHUD : LegacyHud() {
 
     override fun hasBackground() = false
 
-    override fun render(stack: UMatrixStack, x: Float, y: Float, scaleX: Float, scaleY: Float) {
+    override fun render(stack: OmniMatrixStack, x: Float, y: Float, scaleX: Float, scaleY: Float) {
     }
 
 
