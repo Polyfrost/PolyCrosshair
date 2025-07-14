@@ -21,7 +21,6 @@ toolkitLoomHelper {
 
         usePolyMixin = true
         polyMixinVersion = "0.8.4+build.6"
-        useMixinExtras("0.4.1")
 
         applyLoaderTweaker = true
 
@@ -29,6 +28,10 @@ toolkitLoomHelper {
             +module
         }
     }
+
+    useMixinExtras("0.4.1")
+
+    useProperty("mixin.debug.export", "true", GameSide.CLIENT)
 
     // Turns off the server-side run configs, as we're building a client-sided mod.
     disableRunConfigs(GameSide.SERVER)
