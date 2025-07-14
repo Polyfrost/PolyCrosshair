@@ -16,7 +16,7 @@ import kotlin.io.path.exists
 import kotlin.io.path.inputStream
 import net.minecraft.client.renderer.GlStateManager as GL
 
-object CrosshairHUD : LegacyHud() {
+object CrosshairHUD : LegacyHud("polycrosshair.json", "PolyCrosshair", category = Category.COMBAT) {
 
     @Switch(title = "Use Vanilla")
     var useVanilla = false
@@ -42,7 +42,7 @@ object CrosshairHUD : LegacyHud() {
     @Button(title = "Open Editor")
     fun openEditor() { PolyCrosshairUI.open() }
 
-    val id = GL.generateTexture()
+    val texId = GL.generateTexture()
     var texSize = 15f
         private set
 
@@ -53,8 +53,6 @@ object CrosshairHUD : LegacyHud() {
     override var height: Float
         get() = texSize
         set(_) {}
-
-    override fun category() = Category.COMBAT
 
     override fun initialize() {
         val currentCrosshair = currentCrosshair
@@ -71,23 +69,18 @@ object CrosshairHUD : LegacyHud() {
 
     override fun hasBackground() = false
 
-    override fun render(stack: OmniMatrixStack, x: Float, y: Float, scaleX: Float, scaleY: Float) {
+    override fun render(stack: OmniMatrixStack, x: Float, y: Float, scaleX: Float, scaleY: Float, example: Boolean) {
     }
-
 
     fun setCrosshair(cdata: IntArray, size: Int) {
         texSize = size.toFloat()
-        TextureUtil.allocateTexture(id, size, size)
-        TextureUtil.uploadTexture(id, cdata, size, size)
+        TextureUtil.allocateTexture(texId, size, size)
+        TextureUtil.uploadTexture(texId, cdata, size, size)
     }
 
     override fun defaultPosition() = Vec2(1920f / 2f, 1080f / 2f)
 
     override fun multipleInstancesAllowed() = false
-
-    override fun id() = "polycrosshair.json"
-
-    override fun title() = "PolyCrosshair"
 
     override fun update() = false
 }

@@ -26,7 +26,7 @@ public abstract class GuiIngameMixin {
     @Redirect(method = "renderCrosshairs", at = @At(value = "INVOKE", target = "Lnet/minecraftforge/client/GuiIngameForge;bind(Lnet/minecraft/util/ResourceLocation;)V"), remap = false)
     private void bindTexture(GuiIngameForge it, ResourceLocation res) {
         if (CrosshairHUD.INSTANCE.getUseVanilla()) bind(res);
-        else GlStateManager.bindTexture(CrosshairHUD.INSTANCE.getId());
+        else GlStateManager.bindTexture(CrosshairHUD.INSTANCE.getTexId());
     }
 
     @WrapWithCondition(method = "renderCrosshairs", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GlStateManager;tryBlendFuncSeparate(IIII)V", ordinal = 0))

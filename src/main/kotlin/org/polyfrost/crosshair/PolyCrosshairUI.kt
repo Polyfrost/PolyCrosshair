@@ -1,7 +1,5 @@
 package org.polyfrost.crosshair
 
-import dev.deftu.clipboard.Clipboard
-import dev.deftu.clipboard.ClipboardImage
 import org.polyfrost.oneconfig.api.platform.v1.Platform
 import org.polyfrost.oneconfig.api.ui.v1.OCPolyUIBuilder
 import org.polyfrost.polyui.animate.Animations
@@ -16,6 +14,7 @@ import org.polyfrost.polyui.component.impl.*
 import org.polyfrost.polyui.event.Event
 import org.polyfrost.polyui.operations.Recolor
 import org.polyfrost.polyui.unit.Align
+import org.polyfrost.polyui.unit.Align.Wrap
 import org.polyfrost.polyui.unit.Vec2
 import org.polyfrost.polyui.unit.by
 import org.polyfrost.polyui.unit.seconds
@@ -104,7 +103,7 @@ object PolyCrosshairUI {
                 Group(
                     Text("v2.0.0").setPalette { text.secondary },
                     Image("assets/oneconfig/ico/close.svg").onInit { size = Vec2(24f, 24f) }
-                        .setDestructivePalette().withStates().onClick {
+                        .setDestructivePalette().withHoverStates().onClick {
                             // will save the crosshair
                             needsToSave = true
                             currentCard = null
@@ -127,9 +126,9 @@ object PolyCrosshairUI {
                             Button("assets/polycrosshair/copy.svg".image(), padding = Vec2(7f, 6f)).onInit {
                                 this[0].size = Vec2(13.25f, 16f)
                             }.onClick {
-                                Clipboard.getInstance().image = ClipboardImage(canvasSize, canvasSize, genColorData(canvasContainer[0]).toByteArray())
+//                                Clipboard.getInstance().image = ClipboardImage(canvasSize, canvasSize, genColorData(canvasContainer[0]).toByteArray())
                             },
-                            Image("assets/polycrosshair/trashcan.svg").onInit { this.size = Vec2(14.75f, 16f) }.withStates().setDestructivePalette().onClick {
+                            Image("assets/polycrosshair/trashcan.svg").onInit { this.size = Vec2(14.75f, 16f) }.withHoverStates().setDestructivePalette().onClick {
                                 // generate a new canvas to effectively clear it
                                 canvasContainer[0] = genCanvas(canvasSize)
                                 true
@@ -158,7 +157,7 @@ object PolyCrosshairUI {
                     ).named("CanvasSizeControl"),
                     Group(
                         Text("Pen Color", fontSize = 18f),
-                        Block(color = penColor.deref(), size = Vec2(56f, 28f)).withBoarder(3f, color = { page.border20 })
+                        Block(color = penColor.deref(), size = Vec2(56f, 28f)).withBorder(3f, color = { page.border20 })
                             .onClick { ColorPicker(penColor, null, null, polyUI); true },
                         alignment = Align(main = Align.Main.SpaceBetween, pad = Vec2(6f, 12f)),
                         size = Vec2(326f, 40f)
@@ -209,7 +208,7 @@ object PolyCrosshairUI {
                     size = Vec2(335f, 214f),
                     alignment = Align(cross = Align.Cross.Start, pad = Vec2.ZERO)
                 ).named("Library"),
-                alignment = Align(maxRowSize = 1, pad = Vec2(0f, 24f)),
+                alignment = Align(wrap = Wrap.ALWAYS, pad = Vec2(0f, 24f)),
             ),
         )
         if (library.children.isNullOrEmpty()) {
@@ -243,14 +242,14 @@ object PolyCrosshairUI {
             Image(fileName),
             size = Vec2(48f, 48f),
             alignment = Align(main = Align.Main.Center, pad = Vec2.ZERO)
-        ).withBoarder(2f) { page.border10 },
+        ).withBorder(2f) { page.border10 },
         Text(name, fontSize = 8f).setPalette { text.secondary }.padded(0f, 6f, 0f, 0f),
-        alignment = Align(main = Align.Main.Center, maxRowSize = 1, pad = Vec2.ZERO)
+        alignment = Align(main = Align.Main.Center, wrap = Wrap.ALWAYS, pad = Vec2.ZERO)
     ).onClick {
         currentCard = this
     }.onRightClick {
         PopupMenu(
-            Text("Delete").withStates().setDestructivePalette().onClick {
+            Text("Delete").withHoverStates().setDestructivePalette().onClick {
                 library.removeChild(this@onRightClick)
                 Paths.get((this@onRightClick[1] as Text).text.toFileName()).deleteIfExists()
                 polyUI.unfocus()
@@ -277,7 +276,7 @@ object PolyCrosshairUI {
                 val cl = colorData?.get(it) ?: 0
                 val color = if (cl != 0) argb(cl).mutable() else defColor
                 var toggled = !color.transparent
-                Block(radii = null, size = Vec2(sqSize, sqSize), color = color).withBoarder(1f) { page.border10 }
+                Block(radii = null, size = Vec2(sqSize, sqSize), color = color).withBorder(1f) { page.border10 }
                     .events {
                         Event.Mouse.Entered then { ev ->
                             (this.color as PolyColor.Mutable).alpha += 0.05f
