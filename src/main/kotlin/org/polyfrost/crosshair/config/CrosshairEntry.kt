@@ -1,46 +1,27 @@
 package org.polyfrost.crosshair.config
 
-import cc.polyfrost.oneconfig.config.annotations.Button
-import cc.polyfrost.oneconfig.config.annotations.Slider
-import cc.polyfrost.oneconfig.config.annotations.Switch
-import cc.polyfrost.oneconfig.config.core.ConfigUtils
-import cc.polyfrost.oneconfig.utils.dsl.runAsync
-import org.polyfrost.crosshair.utils.*
+class CrosshairEntry {
+    var img: String = EMPTY_IMG
 
-class CrosshairEntry(
-    var img: String = "iVBORw0KGgoAAAANSUhEUgAAAA8AAAAPCAYAAAA71pVKAAAAEUlEQVR42mNgGAWjYBQMIgAAA5MAAecADfkAAAAASUVORK5CYII\u003d",
-) {
+    var scale: Int = 100
+    var rotation: Int = 0
+    var offsetX: Int = 0
+    var offsetY: Int = 0
+    var centered: Boolean = false
 
-    @Slider(name = "Scale %", min = 0f, max = 200f)
-    var scale = 100
-
-    @Slider(name = "Rotation", min = -180f, max = 180f)
-    var rotation = 0
-
-    @Slider(name = "X Offset", min = -1920f, max = 1920f)
-    var offsetX = 0
-
-    @Slider(name = "Y Offset", min = -1080f, max = 1080f)
-    var offsetY = 0
-
-    @Switch(name = "Centered", description = "In vanilla Minecraft, the crosshair is not centered. Enable this option to center the crosshair.")
-    var centered = false
-
-    @Button(name = "Transform", text = "Reset", size = 1)
-    var transformReset = Runnable {
-        runAsync {
-            val img = ModConfig.newCurrentCrosshair.img
-            ModConfig.newCurrentCrosshair.loadFrom(CrosshairEntry())
-            ModConfig.newCurrentCrosshair.img = img
-            save(Drawer.saveFromDrawer(false))
-        }
+    fun copyFrom(other: CrosshairEntry) {
+        img = other.img
+        scale = other.scale
+        rotation = other.rotation
+        offsetX = other.offsetX
+        offsetY = other.offsetY
+        centered = other.centered
     }
 
-    fun loadFrom(entry: CrosshairEntry) {
-        val newFields = ConfigUtils.getClassFields(entry::class.java)
-        val fields = ConfigUtils.getClassFields(this::class.java)
-        for (i in 0..<fields.size) {
-            fields[i].set(this, ConfigUtils.getField(newFields[i], entry))
-        }
+    fun copy(): CrosshairEntry = CrosshairEntry().also { it.copyFrom(this) }
+
+    companion object {
+        const val EMPTY_IMG =
+            "iVBORw0KGgoAAAANSUhEUgAAAA8AAAAPCAYAAAA71pVKAAAAEUlEQVR42mNgGAWjYBQMIgAAA5MAAecADfkAAAAASUVORK5CYII="
     }
 }

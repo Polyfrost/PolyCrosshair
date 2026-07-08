@@ -1,0 +1,34 @@
+{
+    "schemaVersion": 1,
+    "id": "${id}",
+    "version": "${version}",
+    "name": "${name}",
+    "description": "Draw and use your own custom crosshair.",
+    "authors": [
+        "Polyfrost"
+    ],
+    "contact": {
+        "homepage": "https://polyfrost.org",
+        "sources": "https://github.com/Polyfrost/PolyCrosshair"
+    },
+    "license": "LGPL-3.0-or-later",
+    "icon": "assets/polycrosshair/default.png",
+    "environment": "client",
+    "entrypoints": {
+        "client": [
+            {
+                "value": "org.polyfrost.crosshair.PolyCrosshair",
+                "adapter": "kotlin"
+            }
+        ]
+    },
+    "mixins": [
+        "polycrosshair.mixins.json"
+    ],
+    "depends": {
+        "minecraft": "${minecraft}",
+        "fabricloader": ">=0.15.11",
+        "fabric-language-kotlin": "*",
+        "oneconfigv1": ">=1.0.0-beta.6"
+    }
+}

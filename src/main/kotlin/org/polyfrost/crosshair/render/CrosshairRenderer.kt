@@ -1,137 +1,156 @@
-@file:Suppress("UnstableAPIUsage")
 package org.polyfrost.crosshair.render
 
-import cc.polyfrost.oneconfig.config.core.OneColor
-import cc.polyfrost.oneconfig.images.OneImage
-import cc.polyfrost.oneconfig.libs.universal.UResolution
-import cc.polyfrost.oneconfig.utils.dsl.mc
-import net.minecraft.client.gui.Gui
-import net.minecraft.client.gui.ScaledResolution
-import net.minecraft.client.renderer.EntityRenderer
+import com.mojang.blaze3d.platform.NativeImage
+import net.minecraft.client.Minecraft
+import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.renderer.texture.DynamicTexture
-import net.minecraft.client.renderer.texture.TextureUtil
-import net.minecraft.entity.monster.IMob
-import net.minecraft.entity.passive.EntityAmbientCreature
-import net.minecraft.entity.passive.EntityAnimal
-import net.minecraft.entity.passive.EntityVillager
-import net.minecraft.entity.passive.EntityWaterMob
-import net.minecraft.entity.player.EntityPlayer
-import net.minecraftforge.client.event.RenderGameOverlayEvent
-import net.minecraftforge.client.event.TextureStitchEvent
-import net.minecraftforge.common.MinecraftForge
-import net.minecraftforge.fml.common.eventhandler.SubscribeEvent
-import org.lwjgl.opengl.GL11
+//? if >=1.21.11 {
+import net.minecraft.resources.Identifier as ResourceLocation
+//?} else {
+/*import net.minecraft.resources.ResourceLocation
+*///?}
+import net.minecraft.world.entity.MobCategory
+import net.minecraft.world.entity.player.Player
+import net.minecraft.world.phys.EntityHitResult
+import org.polyfrost.compose.render.PolyColor
 import org.polyfrost.crosshair.config.ModConfig
-import org.polyfrost.crosshair.mixin.GuiIngameAccessor
-import org.polyfrost.crosshair.mixin.MinecraftAccessor
+import org.polyfrost.crosshair.utils.toBufferedImage
 import java.awt.image.BufferedImage
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.util.Base64
+import javax.imageio.ImageIO
 import kotlin.math.ceil
-import net.minecraft.client.renderer.GlStateManager as GL
 
 object CrosshairRenderer {
-    private var drawingImage = BufferedImage(10, 10, BufferedImage.TYPE_INT_ARGB)
-    private var texture = DynamicTexture(15, 15)
-    private var textureLocation = mc.textureManager.getDynamicTextureLocation("polycrosshair", texture)
-    private var whiteTexture = DynamicTexture(15, 15)
-    private var whiteTextureLocation = mc.textureManager.getDynamicTextureLocation("polycrosshair", whiteTexture)
-    private var vanilla = DynamicTexture(15, 15)
-    private var vanillaLocation = mc.textureManager.getDynamicTextureLocation("polycrosshair", vanilla)
 
-    fun updateTexture(image: OneImage) {
-        drawingImage = image.image
-        texture = DynamicTexture(drawingImage)
-        textureLocation = mc.textureManager.getDynamicTextureLocation("polycrosshair", texture)
-        whiteTexture = DynamicTexture(drawingImage.width, drawingImage.height)
-        for (posY in 0..<drawingImage.height) {
-            for (posX in 0..<drawingImage.width) {
-                val color = drawingImage.getRGB(posX, posY)
-                if (color shr 24 == 0) continue
-                whiteTexture.textureData[posX + posY * drawingImage.width] = -1
-            }
+    private val mc: Minecraft get() = Minecraft.getInstance()
+
+    private const val TEX_SIZE = 16
+
+    private var lastImg: String? = null
+    private var texture: DynamicTexture? = null
+    private var textureLoc: ResourceLocation? = null
+    private var maskTexture: DynamicTexture? = null
+    private var maskLoc: ResourceLocation? = null
+    private var texW = TEX_SIZE
+    private var texH = TEX_SIZE
+
+    private val WHITE = PolyColor(-1)
+
+    fun render(graphics: GuiGraphics): Boolean {
+        if (!ModConfig.enabled) return false
+        if (!shouldShow()) return true
+
+        ensureTexture()
+        val loc = textureLoc ?: return true
+
+        val scale = ModConfig.scale / 100f
+        val autoSize = if (ModConfig.canvas % 2 == 0) 16 else 15
+        val drawn = ceil((if (ModConfig.custom) autoSize else TEX_SIZE).toFloat() * scale).toInt()
+        val translation = ceil((if (ModConfig.custom && ModConfig.centered) -autoSize / 2f else -7f) * scale).toFloat()
+
+        val cx = graphics.guiWidth() / 2f + ModConfig.offsetX
+        val cy = graphics.guiHeight() / 2f + ModConfig.offsetY
+
+        val pose = graphics.pose()
+        //? if <1.21.6 {
+        /*pose.pushMatrix()
+        pose.translate(cx, cy, 0f)
+        pose.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(ModConfig.rotation))
+        pose.translate(translation, translation, 0f)
+        *///?} else {
+        pose.pushMatrix()
+        pose.translate(cx, cy)
+        pose.rotate(Math.toRadians(ModConfig.rotation.toDouble()).toFloat())
+        pose.translate(translation, translation)
+        //?}
+
+        blit(graphics, loc, drawn, drawn, -1)
+        val color = dynamicColor()
+        if (color.argb != -1) {
+            val tint = (color.argb and 0x00FFFFFF) or ((ModConfig.dynamicOpacity / 100f * 255f).toInt() shl 24)
+            blit(graphics, if (ModConfig.custom) (maskLoc ?: loc) else loc, drawn, drawn, tint)
         }
-        whiteTexture.updateDynamicTexture()
-        whiteTextureLocation = mc.textureManager.getDynamicTextureLocation("polycrosshair", whiteTexture)
+
+        //? if <1.21.6 {
+        /*pose.popMatrix()
+        *///?} else {
+        pose.popMatrix();//?}
+        return true
     }
 
-    fun updateVanilla() {
-        val icon = TextureUtil.readBufferedImage(mc.resourceManager.getResource(Gui.icons).inputStream)
-        val size = icon.width * 16 / 256
-        vanilla = DynamicTexture(size, size)
-        for (y in 0 until size) {
-            for (x in 0 until size) {
-                icon.getRGB(x, y).let {
-                    if (it != -16777216) vanilla.textureData[x + y * size] = it
-                }
-            }
-        }
-        vanilla.updateDynamicTexture()
-        vanillaLocation = mc.textureManager.getDynamicTextureLocation("polycrosshair", vanilla)
+    private fun blit(graphics: GuiGraphics, loc: ResourceLocation, w: Int, h: Int, argb: Int) {
+        //? if <1.21.4 {
+        /*if (argb != -1) com.mojang.blaze3d.systems.RenderSystem.setShaderColor(
+            (argb ushr 16 and 0xFF) / 255f, (argb ushr 8 and 0xFF) / 255f, (argb and 0xFF) / 255f, (argb ushr 24 and 0xFF) / 255f
+        )
+        graphics.blit(loc, 0, 0, 0f, 0f, w, h, texW, texH)
+        if (argb != -1) com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1f, 1f, 1f, 1f)
+        *///?} else if <1.21.6 {
+        /*val type = if (ModConfig.invertColor) net.minecraft.client.renderer.RenderType::crosshair else net.minecraft.client.renderer.RenderType::guiTextured
+        graphics.blit(type, loc, 0, 0, 0f, 0f, w, h, texW, texH, argb)
+        *///?} else {
+        val pipeline = if (ModConfig.invertColor) net.minecraft.client.renderer.RenderPipelines.CROSSHAIR else net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED
+        graphics.blit(pipeline, loc, 0, 0, 0f, 0f, w, h, texW, texH, argb)
+        //?}
     }
 
-    @SubscribeEvent
-    fun onPackSwitch(event: TextureStitchEvent) {
-        updateVanilla()
+    private fun ensureTexture() {
+        val img = ModConfig.data.current.img
+        if (img == lastImg && texture != null) return
+        lastImg = img
+        val buf: BufferedImage = toBufferedImage(img) ?: return
+        texW = buf.width
+        texH = buf.height
+        texture?.close()
+        maskTexture?.close()
+        val (tex, tLoc) = upload("polycrosshair_tex", Base64.getDecoder().decode(img))
+        val (mask, mLoc) = upload("polycrosshair_mask", maskPng(buf))
+        texture = tex; textureLoc = tLoc
+        maskTexture = mask; maskLoc = mLoc
     }
 
-    fun drawCrosshair(entityRenderer: EntityRenderer) {
-        val parent = RenderGameOverlayEvent((mc as MinecraftAccessor).timer.renderPartialTicks, ScaledResolution(mc))
-        MinecraftForge.EVENT_BUS.post(RenderGameOverlayEvent.Pre(parent, RenderGameOverlayEvent.ElementType.CROSSHAIRS))
-        if ((mc.ingameGUI as? GuiIngameAccessor)?.shouldShowCrosshair() == true) {
-            entityRenderer.setupOverlayRendering()
-            GL.pushMatrix()
-            GL.tryBlendFuncSeparate(770, 771, 1, 0)
-            GL.enableBlend()
-            val renderConfig = ModConfig.renderConfig
-            if (renderConfig.invertColor) {
-                GL.tryBlendFuncSeparate(GL11.GL_ONE_MINUS_DST_COLOR, GL11.GL_ONE_MINUS_SRC_COLOR, 1, 0)
-            }
-            GL.enableAlpha()
-
-            GL11.glColor4f(1f, 1f, 1f, 1f)
-
-            (if (ModConfig.mode) textureLocation else vanillaLocation).let { mc.textureManager.bindTexture(it) }
-            val mcScale = UResolution.scaleFactor.toFloat()
-            GL.scale(1 / mcScale, 1 / mcScale, 1f)
-            val crosshair = ModConfig.newCurrentCrosshair
-            GL.translate(crosshair.offsetX.toFloat(), crosshair.offsetY.toFloat(), 0f)
-            GL.translate((UResolution.windowWidth / 2).toFloat(), (UResolution.windowHeight / 2).toFloat(), 0f)
-            GL.rotate(crosshair.rotation.toFloat(), 0f, 0f, 1f)
-            val scale = crosshair.scale / 100f
-            val textureSize = 16
-            val autoScaledSize = if (ModConfig.canvaSize % 2 == 0) 16 else 15
-            val size = ceil((if (ModConfig.mode) autoScaledSize else textureSize) * mcScale * scale).toInt()
-            val translation = ceil((if (ModConfig.mode && crosshair.centered) -autoScaledSize / 2f else -7f) * mcScale * scale)
-            GL.translate(translation, translation, 0f)
-            Gui.drawScaledCustomSizeModalRect(0, 0, 0f, 0f, textureSize, textureSize, size, size, textureSize.toFloat(), textureSize.toFloat())
-            val c = getColor()
-            if (c.rgb != -1) {
-                if (ModConfig.mode) mc.textureManager.bindTexture(whiteTextureLocation)
-                GL11.glColor4f(c.red / 255f, c.green / 255f, c.blue / 255f, renderConfig.dynamicOpacity / 100f)
-                Gui.drawScaledCustomSizeModalRect(0, 0, 0f, 0f, textureSize, textureSize, size, size, textureSize.toFloat(), textureSize.toFloat())
-            }
-            if (renderConfig.invertColor) {
-                GL.tryBlendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, 1, 0)
-            }
-            GL11.glColor4f(1f, 1f, 1f, 1f)
-            GL.disableBlend()
-            GL.popMatrix()
-        }
-        MinecraftForge.EVENT_BUS.post(RenderGameOverlayEvent.Post(parent, RenderGameOverlayEvent.ElementType.CROSSHAIRS))
+    private fun upload(id: String, bytes: ByteArray): Pair<DynamicTexture, ResourceLocation> {
+        val native = NativeImage.read(ByteArrayInputStream(bytes))
+        val tex = DynamicTexture(
+            //? if >=1.21.5 {
+            java.util.function.Supplier { id },
+            //?}
+            native
+        )
+        val loc = ResourceLocation.fromNamespaceAndPath("polycrosshair", id)
+        mc.textureManager.register(loc, tex)
+        return tex to loc
     }
 
-    val WHITE = OneColor(-1)
-
-    private fun getColor(): OneColor {
-        with(ModConfig.renderConfig) {
-            val entity = mc.objectMouseOver?.entityHit ?: return WHITE
-            if (entity.isInvisible) return WHITE
-            if (dynamicColor) {
-                if (hostile && entity is IMob) return hostileColor
-                if (passive && (entity is EntityVillager || entity is EntityAnimal || entity is EntityAmbientCreature || entity is EntityWaterMob)) return passiveColor
-                if (player && entity is EntityPlayer) return playerColor
-            }
+    private fun maskPng(buf: BufferedImage): ByteArray {
+        val mask = BufferedImage(buf.width, buf.height, BufferedImage.TYPE_INT_ARGB)
+        for (y in 0 until buf.height) for (x in 0 until buf.width) {
+            if (buf.getRGB(x, y) ushr 24 != 0) mask.setRGB(x, y, -1)
         }
+        val out = ByteArrayOutputStream()
+        ImageIO.write(mask, "png", out)
+        return out.toByteArray()
+    }
+
+    private fun shouldShow(): Boolean {
+        if (!ModConfig.showInGuis && mc.screen != null) return false
+        if (!ModConfig.showInThirdPerson && !mc.options.cameraType.isFirstPerson) return false
+        val player = mc.player
+        if (player != null && player.isSpectator && !ModConfig.showInSpectator) return false
+        return true
+    }
+
+    private fun dynamicColor(): PolyColor {
+        if (!ModConfig.dynamicColor) return WHITE
+        val entity = (mc.hitResult as? EntityHitResult)?.entity ?: return WHITE
+        if (entity.isInvisible) return WHITE
+        val cat: MobCategory = entity.type.category
+        if (ModConfig.hostile && cat == MobCategory.MONSTER) return ModConfig.hostileColor
+        if (ModConfig.passive && (cat == MobCategory.CREATURE || cat == MobCategory.WATER_CREATURE ||
+                cat == MobCategory.WATER_AMBIENT || cat == MobCategory.AMBIENT)) return ModConfig.passiveColor
+        if (ModConfig.player && entity is Player) return ModConfig.playerColor
         return WHITE
     }
-
 }

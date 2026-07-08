@@ -1,110 +1,62 @@
-@file:Suppress("UnstableAPIUsage")
 package org.polyfrost.crosshair.config
 
-import cc.polyfrost.oneconfig.config.Config
-import cc.polyfrost.oneconfig.config.annotations.*
-import cc.polyfrost.oneconfig.config.core.*
-import cc.polyfrost.oneconfig.config.data.*
-import cc.polyfrost.oneconfig.config.elements.*
-import club.sk1er.patcher.config.OldPatcherConfig
-import org.polyfrost.crosshair.PolyCrosshair
-import org.polyfrost.crosshair.utils.*
-import java.lang.reflect.Field
+import org.polyfrost.compose.render.PolyColor
+import org.polyfrost.oneconfig.api.config.v1.Config.Category
+import org.polyfrost.oneconfig.api.config.v1.KtConfig
+import org.polyfrost.oneconfig.api.config.v1.Visualizer
+import org.polyfrost.crosshair.ui.CrosshairEditor
 
-object ModConfig : Config(Mod(PolyCrosshair.NAME, ModType.HUD, "/${PolyCrosshair.MODID}.svg"), "${PolyCrosshair.MODID}/config.json") {
+object ModConfig : KtConfig("polycrosshair.json", "PolyCrosshair", Category.HUD, "/assets/polycrosshair/polycrosshair.svg") {
 
-    @Exclude
-    var drawer = HashMap<Int, Int>()
+    var enabled by switch(def = true, name = "Enabled", category = "General")
 
-    @DualOption(
-        name = "Mode",
-        left = "Vanilla",
-        right = "Custom",
-        size = 2
+    var mode by dropdown(options = arrayOf("Vanilla", "Custom"), def = 0, name = "Mode", category = "General")
+
+    val custom: Boolean get() = mode == 1
+
+    var scale by slider(min = 0f, max = 200f, def = 100f, name = "Scale %", category = "Transform")
+    var rotation by slider(min = -180f, max = 180f, def = 0f, name = "Rotation", category = "Transform")
+    var offsetX by slider(min = -1920f, max = 1920f, def = 0f, name = "X Offset", category = "Transform")
+    var offsetY by slider(min = -1080f, max = 1080f, def = 0f, name = "Y Offset", category = "Transform")
+    var centered by switch(def = false, name = "Centered", category = "Transform")
+
+    var mirror by dropdown(options = arrayOf("Off", "Horizontal", "Vertical", "Quadrant"), def = 0, name = "Mirror", category = "Crosshair")
+    var canvaSize by slider(min = 15f, max = 32f, def = 15f, name = "Canvas Size", category = "Crosshair")
+
+    var penColor by color(name = "Pen Color", def = PolyColor(-1), category = "Crosshair")
+
+    var data by property(
+        def = CrosshairData(),
+        name = "Editor",
+        category = "Crosshair",
+        visualizer = Visualizer { prop -> CrosshairEditor(prop) },
     )
-    var mode = false
 
-    @CustomOption
-    var newCrosshairs = arrayListOf(CrosshairEntry())
+    var dynamicColor by switch(def = false, name = "Dynamic Color (Overlay)", category = "Dynamic Color")
+    var invertColor by switch(def = true, name = "Invert Color", category = "Dynamic Color")
+    var dynamicOpacity by slider(min = 0f, max = 100f, def = 100f, name = "Overlay Opacity", category = "Dynamic Color")
 
-    var penColor = OneColor(-1)
+    var hostile by switch(def = false, name = "Hostile", category = "Dynamic Color")
+    var hostileColor by color(name = "Hostile Color", def = PolyColor(-1), category = "Dynamic Color")
+    var passive by switch(def = false, name = "Passive", category = "Dynamic Color")
+    var passiveColor by color(name = "Passive Color", def = PolyColor(-1), category = "Dynamic Color")
+    var player by switch(def = false, name = "Players", category = "Dynamic Color")
+    var playerColor by color(name = "Player Color", def = PolyColor(-1), category = "Dynamic Color")
 
-    @Dropdown(
-        name = "Mirror",
-        options = ["Off", "Horizontal", "Vertical", "Quadrant"]
-    )
-    var mirror = 0
+    var showInDebug by switch(def = false, name = "Show in F3 (Debug)", category = "Visibility")
+    var showInGuis by switch(def = true, name = "Show in GUIs", category = "Visibility")
+    var showInThirdPerson by switch(def = true, name = "Show in Third Person", category = "Visibility")
+    var showInSpectator by switch(def = false, name = "Show in Spectator Mode", category = "Visibility")
 
-    @Slider(
-        name = "Canva Size",
-        min = 15f, max = 32f
-    )
-    var canvaSize = 15
-        get() = field.coerceIn(15, 32)
-
-    var newCurrentCrosshair = CrosshairEntry()
-
-    var renderConfig = RenderConfig()
+    val canvas: Int get() = canvaSize.toInt().coerceIn(15, 32)
 
     init {
-        initialize()
-        this.generateOptionList(newCurrentCrosshair, mod.defaultPage, this.mod, false)
-        this.generateOptionList(renderConfig, mod.defaultPage, this.mod, false)
-        var options = listOf("hostile", "passive", "player", "hostileColor", "passiveColor", "playerColor", "dynamicOpacity")
-        for (i in options) {
-            hideIf(i) { !renderConfig.dynamicColor }
-        }
-        addDependency(options[3], options[0])
-        addDependency(options[4], options[1])
-        addDependency(options[5], options[2])
-        addDependency("centered", "mode")
-        options = listOf("mirror", "canvaSize")
-        options.forEach { hideIf(it) { !mode } }
-        addListener("canvaSize") {
-            for (i in drawer) {
-                val pos = indexToPos(i.key)
-                if (pos.x >= canvaSize || pos.y >= canvaSize) {
-                    Drawer.pixels[i.key].isToggled = false
-                }
-            }
-        }
+        listOf("scale", "rotation", "offsetX", "offsetY", "centered", "mirror", "canvaSize", "penColor", "data")
+            .forEach { hideIf(it) { !custom } }
 
-        if (!renderConfig.didPatcherMigration) {
-            try {
-                Class.forName("club.sk1er.patcher.config.OldPatcherConfig")
-                var didAnything = false
-                if (OldPatcherConfig.guiCrosshair) {
-                    renderConfig.showInGuis = false
-                    didAnything = true
-                }
-                if (OldPatcherConfig.crosshairPerspective) {
-                    renderConfig.showInThirdPerson = false
-                    didAnything = true
-                }
-                if (OldPatcherConfig.removeInvertFromCrosshair) {
-                    renderConfig.invertColor = false
-                    didAnything = true
-                }
-                renderConfig.didPatcherMigration = true
-                save()
-                if (didAnything) {
-                    notify("Migrated Patcher settings replaced by PolyCrosshair. Please check PolyCrosshair's settings to make sure they are correct.")
-                }
-            } catch (_: ClassNotFoundException) {
-            }
-        }
+        listOf("dynamicOpacity", "hostile", "passive", "player", "invertColor").forEach { hideIf(it) { !dynamicColor } }
+        hideIf("hostileColor") { !dynamicColor || !hostile }
+        hideIf("passiveColor") { !dynamicColor || !passive }
+        hideIf("playerColor") { !dynamicColor || !player }
     }
-
-    override fun getCustomOption(
-        field: Field,
-        annotation: CustomOption,
-        page: OptionPage,
-        mod: Mod,
-        migrate: Boolean,
-    ): BasicOption? {
-        Drawer.addHideCondition { !mode }
-        ConfigUtils.getSubCategory(page, "General", "").options.add(Drawer)
-        return null
-    }
-
 }
