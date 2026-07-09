@@ -1,20 +1,29 @@
 package org.polyfrost.crosshair.render
 
 import com.mojang.blaze3d.platform.NativeImage
+import com.mojang.blaze3d.systems.RenderSystem
 import net.minecraft.client.Minecraft
 import net.minecraft.client.gui.GuiGraphics
 import net.minecraft.client.renderer.texture.DynamicTexture
 //? if >=1.21.11 {
-import net.minecraft.resources.Identifier as ResourceLocation
-//?} else {
-/*import net.minecraft.resources.ResourceLocation
-*///?}
+/*import net.minecraft.resources.Identifier as ResourceLocation
+*///?} else {
+import net.minecraft.resources.ResourceLocation
+//?}
+//? if >=1.21.5
+//import net.minecraft.client.renderer.RenderPipelines
+//? if >= 1.21.11 {
+//import net.minecraft.client.renderer.rendertype.RenderType
+//?} else if >=1.21.4 {
+import net.minecraft.client.renderer.RenderType
+//?}
 import net.minecraft.world.entity.MobCategory
 import net.minecraft.world.entity.player.Player
 import net.minecraft.world.phys.EntityHitResult
 import org.polyfrost.compose.render.PolyColor
 import org.polyfrost.crosshair.config.ModConfig
 import org.polyfrost.crosshair.utils.toBufferedImage
+import org.polyfrost.oneconfig.api.hud.v1.HudManager
 import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -46,7 +55,7 @@ object CrosshairRenderer {
         val loc = textureLoc ?: return true
 
         val scale = ModConfig.scale / 100f
-        val autoSize = if (ModConfig.canvas % 2 == 0) 16 else 15
+        val autoSize = ModConfig.canvas
         val drawn = ceil((if (ModConfig.custom) autoSize else TEX_SIZE).toFloat() * scale).toInt()
         val translation = ceil((if (ModConfig.custom && ModConfig.centered) -autoSize / 2f else -7f) * scale).toFloat()
 
@@ -55,16 +64,16 @@ object CrosshairRenderer {
 
         val pose = graphics.pose()
         //? if <1.21.6 {
-        /*pose.pushMatrix()
+        pose.pushPose()
         pose.translate(cx, cy, 0f)
         pose.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(ModConfig.rotation))
         pose.translate(translation, translation, 0f)
-        *///?} else {
-        pose.pushMatrix()
+        //?} else {
+        /*pose.pushPose()
         pose.translate(cx, cy)
         pose.rotate(Math.toRadians(ModConfig.rotation.toDouble()).toFloat())
         pose.translate(translation, translation)
-        //?}
+        *///?}
 
         blit(graphics, loc, drawn, drawn, -1)
         val color = dynamicColor()
@@ -74,26 +83,26 @@ object CrosshairRenderer {
         }
 
         //? if <1.21.6 {
-        /*pose.popMatrix()
-        *///?} else {
-        pose.popMatrix();//?}
+        pose.popPose()
+        //?} else {
+        /*pose.popPose();*///?}
         return true
     }
 
     private fun blit(graphics: GuiGraphics, loc: ResourceLocation, w: Int, h: Int, argb: Int) {
         //? if <1.21.4 {
-        /*if (argb != -1) com.mojang.blaze3d.systems.RenderSystem.setShaderColor(
+        /*if (argb != -1) RenderSystem.setShaderColor(
             (argb ushr 16 and 0xFF) / 255f, (argb ushr 8 and 0xFF) / 255f, (argb and 0xFF) / 255f, (argb ushr 24 and 0xFF) / 255f
         )
         graphics.blit(loc, 0, 0, 0f, 0f, w, h, texW, texH)
-        if (argb != -1) com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1f, 1f, 1f, 1f)
+        if (argb != -1) RenderSystem.setShaderColor(1f, 1f, 1f, 1f)
         *///?} else if <1.21.6 {
-        /*val type = if (ModConfig.invertColor) net.minecraft.client.renderer.RenderType::crosshair else net.minecraft.client.renderer.RenderType::guiTextured
+        val type = if (ModConfig.invertColor) RenderType::crosshair else RenderType::guiTextured
         graphics.blit(type, loc, 0, 0, 0f, 0f, w, h, texW, texH, argb)
-        *///?} else {
-        val pipeline = if (ModConfig.invertColor) net.minecraft.client.renderer.RenderPipelines.CROSSHAIR else net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED
+        //?} else {
+        /*val pipeline = if (ModConfig.invertColor) RenderPipelines.CROSSHAIR else RenderPipelines.GUI_TEXTURED
         graphics.blit(pipeline, loc, 0, 0, 0f, 0f, w, h, texW, texH, argb)
-        //?}
+        *///?}
     }
 
     private fun ensureTexture() {
@@ -115,8 +124,8 @@ object CrosshairRenderer {
         val native = NativeImage.read(ByteArrayInputStream(bytes))
         val tex = DynamicTexture(
             //? if >=1.21.5 {
-            java.util.function.Supplier { id },
-            //?}
+            /*{ id },
+            *///?}
             native
         )
         val loc = ResourceLocation.fromNamespaceAndPath("polycrosshair", id)
@@ -135,11 +144,10 @@ object CrosshairRenderer {
     }
 
     private fun shouldShow(): Boolean {
-        if (!ModConfig.showInGuis && mc.screen != null) return false
+        if (!ModConfig.showInDebug && HudManager.isDebugScreenVisible) return false
+        if (!ModConfig.showInGuis && HudManager.isGuiScreenOpen) return false
         if (!ModConfig.showInThirdPerson && !mc.options.cameraType.isFirstPerson) return false
-        val player = mc.player
-        if (player != null && player.isSpectator && !ModConfig.showInSpectator) return false
-        return true
+        return !(mc.player != null && mc.player!!.isSpectator && !ModConfig.showInSpectator)
     }
 
     private fun dynamicColor(): PolyColor {

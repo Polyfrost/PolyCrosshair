@@ -35,7 +35,7 @@ import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.res.loadImageBitmap
+import androidx.compose.ui.graphics.toComposeImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.polyfrost.oneconfig.api.config.v1.Property
@@ -53,7 +53,7 @@ import org.polyfrost.crosshair.utils.notify
 import org.polyfrost.crosshair.utils.toBase64
 import org.polyfrost.crosshair.utils.toBufferedImage
 import java.awt.image.BufferedImage
-import java.io.ByteArrayInputStream
+import org.jetbrains.skia.Image
 import java.util.Base64
 import kotlin.math.abs
 import kotlin.math.max
@@ -66,6 +66,7 @@ fun CrosshairEditor(prop: Property<*>) {
 
     val pixels = remember(prop) { mutableStateMapOf<Int, Int>().apply { load(this, data.current.img) } }
     var galleryVersion by remember { mutableStateOf(0) }
+    var eraser by remember { mutableStateOf(false) }
 
     fun persist() {
         data.current.img = toBase64(pixelsToImage(pixels, ModConfig.canvas))
@@ -103,13 +104,13 @@ fun CrosshairEditor(prop: Property<*>) {
                             }
                         }
                         val down = awaitFirstDown()
-                        paintAt(down.position, false)
+                        paintAt(down.position, eraser)
                         down.consume()
                         do {
                             val event = awaitPointerEvent()
                             val secondary = event.buttons.isSecondaryPressed
                             event.changes.forEach {
-                                if (it.pressed) { paintAt(it.position, secondary); it.consume() }
+                                if (it.pressed) { paintAt(it.position, eraser || secondary); it.consume() }
                             }
                         } while (event.changes.any { it.pressed })
                         persist()
@@ -142,6 +143,7 @@ fun CrosshairEditor(prop: Property<*>) {
                     persist()
                 }
             }
+            EditorButton(if (eraser) "Pen" else "Eraser", active = eraser) { eraser = !eraser }
             EditorButton("Clear") { pixels.clear(); persist() }
             EditorButton("Import") {
                 val img = imageFromClipboard()
@@ -180,11 +182,12 @@ fun CrosshairEditor(prop: Property<*>) {
 }
 
 @Composable
-private fun EditorButton(text: String, onClick: () -> Unit) {
+private fun EditorButton(text: String, active: Boolean = false, onClick: () -> Unit) {
     val theme = LocalTheme.current
     val interactionSource = rememberInteractionSource()
     val isHovered by interactionSource.collectIsHoveredAsState()
-    val bgColor by animateColorAsState(if (isHovered) Accent.copy(alpha = 0.75f) else Accent)
+    val target = if (active) Accent.copy(alpha = 0.5f) else if (isHovered) Accent.copy(alpha = 0.75f) else Accent
+    val bgColor by animateColorAsState(target)
     Box(
         Modifier
             .pointerHoverIcon(PointerIcon.Hand)
@@ -250,7 +253,7 @@ private fun pixelsToImage(pixels: Map<Int, Int>, n: Int): BufferedImage {
 }
 
 private fun thumbnail(base64: String) = try {
-    BitmapPainter(loadImageBitmap(ByteArrayInputStream(Base64.getDecoder().decode(base64))))
+    BitmapPainter(Image.makeFromEncoded(Base64.getDecoder().decode(base64)).toComposeImageBitmap())
 } catch (_: Exception) {
     null
 }
