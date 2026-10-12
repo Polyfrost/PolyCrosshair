@@ -4,8 +4,10 @@ import net.minecraft.client.Minecraft
 //? if >=1.21 {
 import com.mojang.blaze3d.systems.RenderSystem
 import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.world.entity.EquipmentSlot
 import net.minecraft.world.item.BowItem
 import net.minecraft.world.item.CrossbowItem
+import net.minecraft.world.item.Items
 //?} else {
 /*import net.minecraft.client.gui.GuiElement
 import net.minecraft.client.render.Window as GuiGraphicsExtractor
@@ -31,46 +33,36 @@ import net.minecraft.client.renderer.rendertype.RenderType
 import org.polyfrost.crosshair.config.CrosshairProfile
 import org.polyfrost.crosshair.config.ModConfig
 import org.polyfrost.oneconfig.api.hud.v1.HudManager
+import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.roundToInt
 
 object CrosshairRenderer {
 
+    private const val MAX_TEXELS_PER_CELL = 16
+
     private val mc: Minecraft get() = Minecraft.getInstance()
 
+    private class Bounds(val left: Int, val top: Int, val size: Int)
+
+    private var indicator: Bounds? = null
+    private var indicatorGap = 0
+    private var indicatorGuiWidth = 0
+
     fun render(graphics: GuiGraphicsExtractor, vanillaVisible: Boolean): Boolean {
+        indicator = null
         if (!ModConfig.enabled) return false
 
-        val profile = ModConfig.profile(TargetClassifier.current())
-        if (!visible(profile, vanillaVisible)) return true
-
-        val texture = CrosshairTextures.get(profile) ?: return true
-
-        val cells = profile.grid.cells
-        val factor = scaleFactor(profile)
-        val drawn = (cells * factor).roundToInt().coerceAtLeast(1)
-        val spread = spread(profile, factor)
-
         //? if >=1.21 {
-        val left = (graphics.guiWidth() - drawn) / 2
-        val top = (graphics.guiHeight() - drawn) / 2
-        //?} else {
-        /*val left = graphics.width / 2 - drawn / 2
-        val top = graphics.height / 2 - drawn / 2
-        GlStateManager.enableAlphaTest()
-        *///?}
-
-        texture.outline?.let { outline ->
-            drawLayer(graphics, outline, left, top, drawn, cells, spread, profile.outlineColor.get()?.argb ?: -0x1000000, inverted = false)
+        val elytra = ModConfig.elytra
+        if (elytra.enabled?.get() == true && mc.player?.getItemBySlot(EquipmentSlot.CHEST)?.`is`(Items.ELYTRA) == true) {
+            indicator = draw(graphics, elytra, vanillaVisible)
+            indicatorGap = elytra.attackIndicatorGap?.get()?.roundToInt() ?: 0
+            indicatorGuiWidth = graphics.guiWidth()
         }
-
-        val blending = profile.blendingEnabled.get() == true
-        val tint = if (blending) profile.blendingColor.get()?.argb ?: -0x1 else -0x1
-        drawLayer(graphics, texture.art, left, top, drawn, cells, spread, tint, inverted = blending)
-
-        healthTint(profile)?.let { color ->
-            drawLayer(graphics, texture.silhouette, left, top, drawn, cells, spread, color, inverted = false)
-        }
+        //?}
+        val drew = draw(graphics, ModConfig.profile(TargetClassifier.current()), vanillaVisible) != null
+        if (!drew && indicator == null) return true
 
         //? if <1.21 {
         /*GlStateManager.color4f(1f, 1f, 1f, 1f)
@@ -87,6 +79,51 @@ object CrosshairRenderer {
         return true
     }
 
+    fun attackIndicatorY(y: Int): Int {
+        val bounds = indicator ?: return y
+        val x = indicatorGuiWidth / 2 - 8
+        val overlaps = bounds.left < x + 16 && bounds.left + bounds.size > x && bounds.top < y + 16 && bounds.top + bounds.size > y
+        return if (overlaps) max(y, bounds.top + bounds.size + indicatorGap) else y
+    }
+
+    private fun draw(graphics: GuiGraphicsExtractor, profile: CrosshairProfile, vanillaVisible: Boolean): Bounds? {
+        if (!visible(profile, vanillaVisible)) return null
+
+        val cells = profile.grid.cells
+        val factor = scaleFactor(profile)
+        val texels = ceil(guiScale() * factor).toInt().coerceIn(1, MAX_TEXELS_PER_CELL)
+        val texture = CrosshairTextures.get(profile, texels) ?: return null
+
+        val drawn = (cells * factor).roundToInt().coerceAtLeast(1)
+        val spread = spread(profile, factor)
+
+        val perCell = drawn.toFloat() / cells
+        val shiftX = ((profile.offsetX?.get() ?: 0f) * perCell).roundToInt()
+        val shiftY = ((profile.offsetY?.get() ?: 0f) * perCell).roundToInt()
+        //? if >=1.21 {
+        val left = (graphics.guiWidth() - drawn) / 2 + shiftX
+        val top = (graphics.guiHeight() - drawn) / 2 + shiftY
+        //?} else {
+        /*val left = graphics.width / 2 - drawn / 2 + shiftX
+        val top = graphics.height / 2 - drawn / 2 + shiftY
+        GlStateManager.enableAlphaTest()
+        *///?}
+
+        texture.outline?.let { outline ->
+            drawLayer(graphics, outline, left, top, drawn, cells, spread, profile.outlineColor.get()?.argb ?: -0x1000000, inverted = false)
+        }
+
+        val blending = profile.blendingEnabled.get() == true
+        val tint = if (blending) profile.blendingColor.get()?.argb ?: -0x1 else -0x1
+        drawLayer(graphics, texture.art, left, top, drawn, cells, spread, tint, inverted = blending)
+
+        healthTint(profile)?.let { color ->
+            drawLayer(graphics, texture.silhouette, left, top, drawn, cells, spread, color, inverted = false)
+        }
+
+        return Bounds(left, top, drawn)
+    }
+
     private fun visible(profile: CrosshairProfile, vanillaVisible: Boolean): Boolean {
         //? if >=1.21 {
         val firstPerson = mc.options.cameraType.isFirstPerson
@@ -100,14 +137,17 @@ object CrosshairRenderer {
         return !firstPerson
     }
 
+    private fun guiScale(): Double =
+        //? if >=1.21 {
+        mc.window.guiScale.toDouble()
+        //?} else {
+        /*GuiGraphicsExtractor(mc).scale.toDouble()
+        *///?}
+
     private fun scaleFactor(profile: CrosshairProfile): Float {
         if (profile.customScaleEnabled.get() != true) return 1f
         val scale = profile.customScale.get() ?: return 1f
-        //? if >=1.21 {
-        val current = mc.window.guiScale
-        //?} else {
-        /*val current = GuiGraphicsExtractor(mc).scale.toDouble()
-        *///?}
+        val current = guiScale()
         if (current <= 0.0) return 1f
         return (scale / current).toFloat()
     }
@@ -116,7 +156,7 @@ object CrosshairRenderer {
         val player = mc.player ?: return 0
         var spread = 0f
 
-        if (profile.bowEnabled.get() == true) {
+        if (profile.bowEnabled?.get() == true) {
             //? if >=1.21 {
             val stack = if (player.isUsingItem) player.useItem else null
             val item = stack?.item
@@ -128,14 +168,14 @@ object CrosshairRenderer {
             *///?}
             if (drawing) {
                 val charge = (ticks / 20f).coerceIn(0f, 1f)
-                spread = max(spread, (1f - charge) * (profile.bowScale.get() ?: 1f))
+                spread = max(spread, (1f - charge) * (profile.bowScale?.get() ?: 1f))
             }
         }
 
         //? if >=1.21 {
-        if (profile.attackEnabled.get() == true) {
+        if (profile.attackEnabled?.get() == true) {
             val recovered = player.getAttackStrengthScale(0f).coerceIn(0f, 1f)
-            spread = max(spread, (1f - recovered) * (profile.attackScale.get() ?: 1f))
+            spread = max(spread, (1f - recovered) * (profile.attackScale?.get() ?: 1f))
         }
         //?}
 

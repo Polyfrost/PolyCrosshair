@@ -26,6 +26,16 @@ object ModConfig : KtConfig(
 
     val enemy = CrosshairProfile(root, "enemy", "Enemy") { normal }
 
+    //? if >=1.21 {
+    val elytra = CrosshairProfile(
+        root, "elytra", "Elytra",
+        defaultImage = CrosshairPixels.ELYTRA,
+        enabledDescription = "Shows this below your crosshair while you're wearing an elytra.",
+        enabledDefault = true,
+        indicator = true,
+    ) { normal }
+    //?}
+
     val penColor: Property<Int> = root.hidden("pen_color", -0x1, Int::class.java)
 
     val favorites: Property<String> = root.hidden("favorites", "", String::class.java)

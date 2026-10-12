@@ -10,6 +10,10 @@ class CrosshairProfile(
     root: Tree,
     val key: String,
     val category: String,
+    val defaultImage: String = CrosshairPixels.DEFAULT,
+    enabledDescription: String = "Shows this crosshair when you look at ${category.lowercase()} targets. Turn this off to use the Normal crosshair instead.",
+    enabledDefault: Boolean = false,
+    indicator: Boolean = false,
     copySource: (() -> CrosshairProfile)? = null,
 ) {
     @Volatile
@@ -20,9 +24,9 @@ class CrosshairProfile(
         root.switch(
             id = "${key}_enabled",
             title = "Use $category Crosshair",
-            description = "Shows this crosshair when you look at ${category.lowercase()} targets. Turn this off to use the Normal crosshair instead.",
+            description = enabledDescription,
             category = category,
-            def = false,
+            def = enabledDefault,
         )
     }
 
@@ -39,13 +43,38 @@ class CrosshairProfile(
 
     val image: Property<String> = root.custom(
         id = "${key}_image",
-        // OneConfig shows the id when the title is blank, and it trims ordinary spaces, so this is a non-breaking space.
         title = "\u00A0",
         category = category,
-        def = CrosshairPixels.DEFAULT,
+        def = defaultImage,
         type = String::class.java,
         visualizer = Visualizer { prop -> CrosshairEditor(this, prop) },
     )
+
+    val circles: Property<String> = root.hidden("${key}_circles", "", String::class.java)
+
+    val offsetX: Property<Float>? = if (indicator) root.slider(
+        id = "${key}_offset_x",
+        title = "Offset X",
+        description = "How far right of the crosshair this is drawn, in crosshair pixels.",
+        category = category,
+        min = -32f, max = 32f, def = 0f, step = 1f,
+    ) else null
+
+    val offsetY: Property<Float>? = if (indicator) root.slider(
+        id = "${key}_offset_y",
+        title = "Offset Y",
+        description = "How far below the crosshair this is drawn, in crosshair pixels.",
+        category = category,
+        min = -32f, max = 32f, def = 11f, step = 1f,
+    ) else null
+
+    val attackIndicatorGap: Property<Float>? = if (indicator) root.slider(
+        id = "${key}_attack_indicator_gap",
+        title = "Attack Indicator Gap",
+        description = "When this overlaps the vanilla attack indicator, the indicator moves down to sit this far below it.",
+        category = category,
+        min = -16f, max = 16f, def = -2f, step = 1f,
+    ) else null
 
     val gridSize: Property<Int> = root.dropdown(
         id = "${key}_grid_size",
@@ -121,14 +150,14 @@ class CrosshairProfile(
         def = PolyColor.rgba(255, 60, 60, 255),
     )
 
-    private val bow = root.accordion(
+    private val bow = if (indicator) null else root.accordion(
         id = "${key}_bow",
         title = "Dynamic Bow",
         description = "Spreads the crosshair apart when you start drawing a bow and closes it as the shot charges.",
         category = category,
     )
-    val bowEnabled: Property<Boolean> = bow.second
-    val bowScale: Property<Float> = bow.first.slider(
+    val bowEnabled: Property<Boolean>? = bow?.second
+    val bowScale: Property<Float>? = bow?.first?.slider(
         id = "animation_scale",
         title = "Animation Scale",
         description = "How far the crosshair spreads apart.",
@@ -137,14 +166,14 @@ class CrosshairProfile(
     )
 
     //? if >=1.21 {
-    private val attack = root.accordion(
+    private val attack = if (indicator) null else root.accordion(
         id = "${key}_attack",
         title = "Dynamic Attack",
         description = "Spreads the crosshair apart after you attack and closes it as the cooldown recovers.",
         category = category,
     )
-    val attackEnabled: Property<Boolean> = attack.second
-    val attackScale: Property<Float> = attack.first.slider(
+    val attackEnabled: Property<Boolean>? = attack?.second
+    val attackScale: Property<Float>? = attack?.first?.slider(
         id = "animation_scale",
         title = "Animation Scale",
         description = "How far the crosshair spreads apart.",
@@ -192,8 +221,11 @@ class CrosshairProfile(
 
     fun pixels(): CrosshairPixels = CrosshairPixels.load(image.get().orEmpty(), grid.cells, resizeStretch.get() == true)
 
-    fun writePixels(pixels: CrosshairPixels) {
+    fun circles(): CrosshairCircles = CrosshairCircles.load(circles.get().orEmpty(), grid.cells, resizeStretch.get() == true)
+
+    fun write(pixels: CrosshairPixels, circles: CrosshairCircles) {
         image.set(pixels.toBase64())
+        this.circles.set(circles.encode())
         revision++
     }
 
@@ -202,6 +234,7 @@ class CrosshairProfile(
         gridSize.set(other.gridSize.get())
         resizeStretch.set(other.resizeStretch.get())
         image.set(other.image.get())
+        circles.set(other.circles.get())
 
         outlineEnabled.set(other.outlineEnabled.get())
         outlineThickness.set(other.outlineThickness.get())
@@ -214,12 +247,12 @@ class CrosshairProfile(
         healthThreshold.set(other.healthThreshold.get())
         healthColor.set(other.healthColor.get())
 
-        bowEnabled.set(other.bowEnabled.get())
-        bowScale.set(other.bowScale.get())
+        other.bowEnabled?.let { bowEnabled?.set(it.get()) }
+        other.bowScale?.let { bowScale?.set(it.get()) }
 
         //? if >=1.21 {
-        attackEnabled.set(other.attackEnabled.get())
-        attackScale.set(other.attackScale.get())
+        other.attackEnabled?.let { attackEnabled?.set(it.get()) }
+        other.attackScale?.let { attackScale?.set(it.get()) }
         //?}
 
         customScaleEnabled.set(other.customScaleEnabled.get())

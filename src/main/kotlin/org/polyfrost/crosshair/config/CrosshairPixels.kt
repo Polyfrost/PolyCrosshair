@@ -87,11 +87,20 @@ class CrosshairPixels(val size: Int, val argb: IntArray = IntArray(size * size))
         return out
     }
 
-    fun outline(thickness: Float): CrosshairPixels? {
-        val radius = thickness * SUPERSAMPLE
+    fun scaled(factor: Int): CrosshairPixels {
+        if (factor == 1) return copy()
+        val hi = size * factor
+        val out = CrosshairPixels(hi)
+        for (y in 0 until hi) {
+            for (x in 0 until hi) out.argb[y * hi + x] = this[x / factor, y / factor]
+        }
+        return out
+    }
+
+    fun outline(thickness: Float, s: Int): CrosshairPixels? {
+        val radius = thickness * s
         if (radius < 0.5f) return null
 
-        val s = SUPERSAMPLE
         val hi = size * s
         val shape = BooleanArray(hi * hi)
         val grown = BooleanArray(hi * hi)
@@ -156,8 +165,6 @@ class CrosshairPixels(val size: Int, val argb: IntArray = IntArray(size * size))
     }
 
     companion object {
-        const val SUPERSAMPLE = 8
-
         fun fromBase64(base64: String): CrosshairPixels? = try {
             val bytes = Base64.getDecoder().decode(base64)
             ImageIO.read(ByteArrayInputStream(bytes))?.let(::fromImage)
@@ -181,5 +188,8 @@ class CrosshairPixels(val size: Int, val argb: IntArray = IntArray(size * size))
 
         const val DEFAULT: String =
             "iVBORw0KGgoAAAANSUhEUgAAAA8AAAAPCAYAAAA71pVKAAAAGUlEQVR42mNgGH7gPxAMd83/iQCjATYkAQAXJEO9Ljp2dQAAAABJRU5ErkJggg=="
+
+        const val ELYTRA: String =
+            "iVBORw0KGgoAAAANSUhEUgAAAA8AAAAPCAYAAAA71pVKAAAAS0lEQVR4Xs2LQQ4AIAjD+P+nNVyIFpjxYtxt7Wb2TYYItxEOqhN7wA0sTLlcwJTLBUy5XMCUywVMuRZ0Z/YSXp09pwP5FpfdQLn3mcK+xzn5e4m4AAAAAElFTkSuQmCC"
     }
 }

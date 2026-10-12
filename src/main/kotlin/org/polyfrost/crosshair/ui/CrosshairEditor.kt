@@ -40,6 +40,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -54,6 +56,8 @@ import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.polyfrost.crosshair.config.Circle
+import org.polyfrost.crosshair.config.CrosshairCircles
 import org.polyfrost.crosshair.config.CrosshairPixels
 import org.polyfrost.crosshair.config.CrosshairProfile
 import org.polyfrost.crosshair.config.MirrorMode
@@ -70,6 +74,8 @@ import org.polyfrost.oneconfig.internal.ui.themes.Accent
 import org.polyfrost.oneconfig.internal.ui.themes.LocalTheme
 import java.util.function.Predicate
 import kotlin.math.abs
+import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
 private val CANVAS_SIZE = 304.dp
 private val FAVORITE_SIZE = 96.dp
@@ -95,16 +101,21 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
         val imageListener = Predicate<String> { if (!writing[0]) reloads++; false }
         profile.gridSize.addCallback(gridListener)
         profile.image.addCallback(imageListener)
+        profile.circles.addCallback(imageListener)
         onDispose {
             profile.gridSize.removeCallback(gridListener)
             profile.image.removeCallback(imageListener)
+            profile.circles.removeCallback(imageListener)
         }
     }
     val cells = remember(reloads) { profile.grid.cells }
 
-    val state = remember(prop, reloads) { EditorState(profile.pixels()) }
+    val state = remember(prop, reloads) { EditorState(profile.pixels(), profile.circles()) }
     var version by remember(state) { mutableIntStateOf(0) }
     var mirror by remember(prop) { mutableStateOf(MirrorMode.NONE) }
+    var tool by remember(prop) { mutableStateOf(Tool.PEN) }
+    var thickness by remember(prop) { mutableStateOf(1f) }
+    var draft by remember(state) { mutableStateOf<Circle?>(null) }
     var guides by remember(prop) { mutableStateOf(true) }
     val pen = ModConfig.penColor.observe() ?: -0x1
     val favorites = remember(ModConfig.favorites.observe()) { ModConfig.favoriteList() }
@@ -117,7 +128,7 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
     fun persist() {
         writing[0] = true
         try {
-            profile.writePixels(state.pixels)
+            profile.write(state.pixels, state.circles)
         } finally {
             writing[0] = false
         }
@@ -129,10 +140,14 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
         version++
     }
 
-    fun replace(base64: String) {
+    fun replace(entry: String) {
+        val stretch = profile.resizeStretch.get() == true
+        val (image, circles) = splitFavorite(entry)
         mutate {
             state.snapshot()
-            state.pixels.copyFrom(CrosshairPixels.load(base64, cells, profile.resizeStretch.get() == true))
+            state.pixels.copyFrom(CrosshairPixels.load(image, cells, stretch))
+            state.circles.list.clear()
+            state.circles.list.addAll(CrosshairCircles.load(circles, cells, stretch).list)
         }
         persist()
     }
@@ -164,19 +179,20 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
                         if (event.type != KeyEventType.KeyDown) return@onKeyEvent false
                         when (event.key) {
                             Key.Delete -> {
-                                mutate { state.snapshot(); state.pixels.clear() }
+                                mutate { state.snapshot(); state.clear() }
                                 persist(); true
                             }
                             Key.S -> { guides = !guides; true }
                             Key.Z -> { if (state.undo()) { version++; persist() }; true }
                             Key.Y -> { if (state.redo()) { version++; persist() }; true }
                             Key.W -> { mirror = mirror.next(); true }
+                            Key.C -> { tool = tool.next(); true }
                             else -> false
                         }
                     }
                     .focusRequester(focus)
                     .focusable()
-                    .pointerInput(state, mirror, pen) {
+                    .pointerInput(state, mirror, pen, tool, thickness) {
                         awaitEachGesture {
                             val cell = size.width / cells.toFloat()
                             var origin: Pair<Int, Int>? = null
@@ -204,6 +220,44 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
                             } while (press.type != PointerEventType.Press)
                             val down = press.changes.first()
                             val erasing = press.buttons.isSecondaryPressed
+
+                            if (tool == Tool.CIRCLE) {
+                                down.consume()
+                                val x = down.position.x / cell
+                                val y = down.position.y / cell
+                                if (erasing) {
+                                    val hit = state.circles.list.lastOrNull { it.distanceToRing(x, y) <= it.thickness / 2f + 0.5f }
+                                    if (hit != null) {
+                                        mutate { state.snapshot(); state.circles.list.remove(hit) }
+                                        persist()
+                                    }
+                                    do {
+                                        val event = awaitPointerEvent()
+                                        event.changes.forEach { it.consume() }
+                                    } while (event.changes.any { it.pressed })
+                                    return@awaitEachGesture
+                                }
+                                val cx = (x * 2f).roundToInt() / 2f
+                                val cy = (y * 2f).roundToInt() / 2f
+                                do {
+                                    val event = awaitPointerEvent()
+                                    val change = event.changes.first()
+                                    if (change.pressed) {
+                                        val dx = change.position.x / cell - cx
+                                        val dy = change.position.y / cell - cy
+                                        draft = Circle(cx, cy, sqrt(dx * dx + dy * dy), thickness, pen)
+                                        change.consume()
+                                    }
+                                } while (event.changes.any { it.pressed })
+                                val made = draft
+                                draft = null
+                                if (made != null && made.radius >= MIN_CIRCLE_RADIUS) {
+                                    mutate { state.snapshot(); state.circles.list.add(made) }
+                                    persist()
+                                }
+                                return@awaitEachGesture
+                            }
+
                             mutate { paint(down.position, erasing, lockAxis = false) }
                             down.consume()
 
@@ -245,6 +299,9 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
                         }
                     }
 
+                    drawCircles(state.circles.list, cell)
+                    draft?.let { drawCircles(listOf(it), cell) }
+
                     if (cells <= 32) {
                         for (i in 1 until cells) {
                             val at = i * cell
@@ -272,14 +329,14 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
                 EditorButton("Undo", enabled = state.canUndo) { if (state.undo()) { version++; persist() } }
                 EditorButton("Redo", enabled = state.canRedo) { if (state.redo()) { version++; persist() } }
                 EditorButton("Clear") {
-                    mutate { state.snapshot(); state.pixels.clear() }
+                    mutate { state.snapshot(); state.clear() }
                     persist()
                 }
-                EditorButton("Reset") { replace(CrosshairPixels.DEFAULT) }
+                EditorButton("Reset") { replace(profile.defaultImage) }
                 ColorOption(ColorOptionData(ModConfig.penColor))
                 EditorButton("Save") {
-                    val current = state.pixels.toBase64()
-                    if (!state.pixels.isEmpty() && current !in favorites) ModConfig.setFavorites(favorites + current)
+                    val current = favoriteOf(state.pixels, state.circles)
+                    if (!state.isEmpty() && current !in favorites) ModConfig.setFavorites(favorites + current)
                 }
                 Spacer(Modifier.weight(1f))
                 Box(
@@ -320,6 +377,21 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Tool", color = theme.textColorSecondary, fontSize = 12.sp)
+            Tool.entries.forEach { entry ->
+                Chip(entry.label, selected = tool == entry) { tool = entry }
+            }
+            if (tool == Tool.CIRCLE) {
+                Spacer(Modifier.width(12.dp))
+                Text("Thickness", color = theme.textColorSecondary, fontSize = 12.sp)
+                CIRCLE_THICKNESSES.forEach { value ->
+                    val label = if (value % 1f == 0f) value.toInt().toString() else value.toString()
+                    Chip(label, selected = thickness == value) { thickness = value }
+                }
+            }
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Mirror", color = theme.textColorSecondary, fontSize = 12.sp)
             MirrorMode.entries.forEach { mode ->
                 Chip(mode.label, selected = mirror == mode) { mirror = mode }
@@ -340,9 +412,11 @@ private fun <T> Property<T>.observe(): T? {
 }
 
 @Composable
-private fun Favorite(base64: String, onLoad: () -> Unit, onRemove: () -> Unit) {
+private fun Favorite(entry: String, onLoad: () -> Unit, onRemove: () -> Unit) {
     val theme = LocalTheme.current
-    val pixels = remember(base64) { CrosshairPixels.fromBase64(base64) } ?: return
+    val parts = remember(entry) { splitFavorite(entry) }
+    val pixels = remember(entry) { CrosshairPixels.fromBase64(parts.first) } ?: return
+    val circles = remember(entry) { CrosshairCircles.decode(parts.second) }
     val interaction = rememberInteractionSource()
     val hovered by interaction.collectIsHoveredAsState()
     Box(
@@ -362,6 +436,7 @@ private fun Favorite(base64: String, onLoad: () -> Unit, onRemove: () -> Unit) {
                     if (argb ushr 24 != 0) drawRect(Color(argb), Offset(x * cell, y * cell), Size(cell, cell))
                 }
             }
+            circles?.let { drawCircles(it.list, size.width / it.size) }
         }
         Box(
             Modifier
@@ -405,7 +480,35 @@ private val SHORTCUTS = listOf(
     "Z" to "Undo",
     "Y" to "Redo",
     "W" to "Cycle mirror mode",
+    "C" to "Switch between pen and circle",
+    "Circle: drag" to "Draw a circle from its center",
+    "Circle: right click" to "Remove a circle",
 )
+
+private enum class Tool(val label: String) {
+    PEN("Pen"),
+    CIRCLE("Circle");
+
+    fun next(): Tool = entries[(ordinal + 1) % entries.size]
+}
+
+private val CIRCLE_THICKNESSES = listOf(0.5f, 1f, 1.5f, 2f, 3f)
+private const val MIN_CIRCLE_RADIUS = 0.25f
+private const val FAVORITE_CIRCLES = "|"
+
+private fun favoriteOf(pixels: CrosshairPixels, circles: CrosshairCircles): String {
+    val base64 = pixels.toBase64()
+    return if (circles.isEmpty()) base64 else base64 + FAVORITE_CIRCLES + circles.encode()
+}
+
+private fun splitFavorite(entry: String): Pair<String, String> =
+    entry.substringBefore(FAVORITE_CIRCLES) to entry.substringAfter(FAVORITE_CIRCLES, "")
+
+private fun DrawScope.drawCircles(circles: List<Circle>, cell: Float) {
+    circles.forEach {
+        drawCircle(Color(it.color), it.radius * cell, Offset(it.x * cell, it.y * cell), style = Stroke(it.thickness * cell))
+    }
+}
 
 @Composable
 private fun EditorButton(text: String, enabled: Boolean = true, onClick: () -> Unit) {

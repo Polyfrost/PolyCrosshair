@@ -24,6 +24,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(
@@ -34,6 +35,46 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
     *///?}
 )
 public abstract class CrosshairMixin {
+
+    @Unique
+    private static final String CROSSHAIR_METHOD =
+        //? if >=26 {
+        "extractCrosshair";
+        //?} else {
+        /*"renderCrosshair";
+        *///?}
+
+    @Unique
+    private static final String BLIT_SPRITE =
+        //? if >=1.21.11 {
+        "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blitSprite(Lcom/mojang/renderpearl/api/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIII)V";
+        //?} else if >=1.21.6 {
+        /*"Lnet/minecraft/client/gui/GuiGraphicsExtractor;blitSprite(Lcom/mojang/renderpearl/api/pipeline/RenderPipeline;Lnet/minecraft/resources/ResourceLocation;IIII)V";
+        *///?} else if >=1.21.4 {
+        /*"Lnet/minecraft/client/gui/GuiGraphicsExtractor;blitSprite(Ljava/util/function/Function;Lnet/minecraft/resources/ResourceLocation;IIII)V";
+        *///?} else {
+        /*"Lnet/minecraft/client/gui/GuiGraphicsExtractor;blitSprite(Lnet/minecraft/resources/ResourceLocation;IIII)V";
+        *///?}
+
+    @Unique
+    private static final String BLIT_SPRITE_REGION =
+        //? if >=1.21.11 {
+        "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blitSprite(Lcom/mojang/renderpearl/api/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIIIIIII)V";
+        //?} else if >=1.21.6 {
+        /*"Lnet/minecraft/client/gui/GuiGraphicsExtractor;blitSprite(Lcom/mojang/renderpearl/api/pipeline/RenderPipeline;Lnet/minecraft/resources/ResourceLocation;IIIIIIII)V";
+        *///?} else if >=1.21.4 {
+        /*"Lnet/minecraft/client/gui/GuiGraphicsExtractor;blitSprite(Ljava/util/function/Function;Lnet/minecraft/resources/ResourceLocation;IIIIIIII)V";
+        *///?} else {
+        /*"Lnet/minecraft/client/gui/GuiGraphicsExtractor;blitSprite(Lnet/minecraft/resources/ResourceLocation;IIIIIIII)V";
+        *///?}
+
+    @Unique
+    private static final int BLIT_Y =
+        //? if >=1.21.4 {
+        3;
+        //?} else {
+        /*2;
+        *///?}
 
     @Unique
     private boolean polycrosshair$spriteReached;
@@ -71,6 +112,21 @@ public abstract class CrosshairMixin {
         int x, int y, int width, int height) {
         polycrosshair$spriteReached = true;
         return !CrosshairRenderer.INSTANCE.render(graphics, true);
+    }
+
+    @ModifyArg(method = CROSSHAIR_METHOD, at = @At(value = "INVOKE", target = BLIT_SPRITE, ordinal = 1), index = BLIT_Y)
+    private int polycrosshair$moveAttackIndicator(int y) {
+        return CrosshairRenderer.INSTANCE.attackIndicatorY(y);
+    }
+
+    @ModifyArg(method = CROSSHAIR_METHOD, at = @At(value = "INVOKE", target = BLIT_SPRITE, ordinal = 2), index = BLIT_Y)
+    private int polycrosshair$moveAttackIndicatorBackground(int y) {
+        return CrosshairRenderer.INSTANCE.attackIndicatorY(y);
+    }
+
+    @ModifyArg(method = CROSSHAIR_METHOD, at = @At(value = "INVOKE", target = BLIT_SPRITE_REGION), index = BLIT_Y + 4)
+    private int polycrosshair$moveAttackIndicatorProgress(int y) {
+        return CrosshairRenderer.INSTANCE.attackIndicatorY(y);
     }
 
     @Inject(
