@@ -1,164 +1,250 @@
 package org.polyfrost.crosshair.render
 
-import com.mojang.blaze3d.platform.NativeImage
-import com.mojang.blaze3d.systems.RenderSystem
 import net.minecraft.client.Minecraft
-import net.minecraft.client.gui.GuiGraphics
-import net.minecraft.client.renderer.texture.DynamicTexture
+//? if >=1.21 {
+import com.mojang.blaze3d.systems.RenderSystem
+import net.minecraft.client.gui.GuiGraphicsExtractor
+import net.minecraft.world.item.BowItem
+import net.minecraft.world.item.CrossbowItem
+//?} else {
+/*import net.minecraft.client.gui.GuiElement
+import net.minecraft.client.render.Window as GuiGraphicsExtractor
+import net.minecraft.client.render.platform.GlStateManager
+import net.minecraft.item.BowItem
+import org.lwjgl.opengl.GL11
+*///?}
 //? if >=1.21.11 {
-/*import net.minecraft.resources.Identifier as ResourceLocation
+import net.minecraft.resources.Identifier as ResourceLocation
+//?} else if >=1.21 {
+/*import net.minecraft.resources.ResourceLocation
 *///?} else {
-import net.minecraft.resources.ResourceLocation
+/*import net.minecraft.resource.Identifier as ResourceLocation
+*///?}
+//? if >=1.21.6 {
+import net.minecraft.client.renderer.RenderPipelines
 //?}
-//? if >=1.21.5
-//import net.minecraft.client.renderer.RenderPipelines
-//? if >= 1.21.11 {
-//import net.minecraft.client.renderer.rendertype.RenderType
+//? if >=1.21.11 {
+import net.minecraft.client.renderer.rendertype.RenderType
 //?} else if >=1.21.4 {
-import net.minecraft.client.renderer.RenderType
-//?}
-import net.minecraft.world.entity.MobCategory
-import net.minecraft.world.entity.player.Player
-import net.minecraft.world.phys.EntityHitResult
-import org.polyfrost.compose.render.PolyColor
+/*import net.minecraft.client.renderer.RenderType
+*///?}
+import org.polyfrost.crosshair.config.CrosshairProfile
 import org.polyfrost.crosshair.config.ModConfig
-import org.polyfrost.crosshair.utils.toBufferedImage
 import org.polyfrost.oneconfig.api.hud.v1.HudManager
-import java.awt.image.BufferedImage
-import java.io.ByteArrayInputStream
-import java.io.ByteArrayOutputStream
-import java.util.Base64
-import javax.imageio.ImageIO
-import kotlin.math.ceil
+import kotlin.math.max
+import kotlin.math.roundToInt
 
 object CrosshairRenderer {
 
     private val mc: Minecraft get() = Minecraft.getInstance()
 
-    private const val TEX_SIZE = 16
-
-    private var lastImg: String? = null
-    private var texture: DynamicTexture? = null
-    private var textureLoc: ResourceLocation? = null
-    private var maskTexture: DynamicTexture? = null
-    private var maskLoc: ResourceLocation? = null
-    private var texW = TEX_SIZE
-    private var texH = TEX_SIZE
-
-    private val WHITE = PolyColor(-1)
-
-    fun render(graphics: GuiGraphics): Boolean {
+    fun render(graphics: GuiGraphicsExtractor, vanillaVisible: Boolean): Boolean {
         if (!ModConfig.enabled) return false
-        if (!shouldShow()) return true
 
-        ensureTexture()
-        val loc = textureLoc ?: return true
+        val profile = ModConfig.profile(TargetClassifier.current())
+        if (!visible(profile, vanillaVisible)) return true
 
-        val scale = ModConfig.scale / 100f
-        val autoSize = ModConfig.canvas
-        val drawn = ceil((if (ModConfig.custom) autoSize else TEX_SIZE).toFloat() * scale).toInt()
-        val translation = ceil((if (ModConfig.custom && ModConfig.centered) -autoSize / 2f else -7f) * scale).toFloat()
+        val texture = CrosshairTextures.get(profile) ?: return true
 
-        val cx = graphics.guiWidth() / 2f + ModConfig.offsetX
-        val cy = graphics.guiHeight() / 2f + ModConfig.offsetY
+        val cells = profile.grid.cells
+        val factor = scaleFactor(profile)
+        val drawn = (cells * factor).roundToInt().coerceAtLeast(1)
+        val spread = spread(profile, factor)
 
-        val pose = graphics.pose()
-        //? if <1.21.6 {
-        pose.pushPose()
-        pose.translate(cx, cy, 0f)
-        pose.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(ModConfig.rotation))
-        pose.translate(translation, translation, 0f)
+        //? if >=1.21 {
+        val left = (graphics.guiWidth() - drawn) / 2
+        val top = (graphics.guiHeight() - drawn) / 2
         //?} else {
-        /*pose.pushPose()
-        pose.translate(cx, cy)
-        pose.rotate(Math.toRadians(ModConfig.rotation.toDouble()).toFloat())
-        pose.translate(translation, translation)
+        /*val left = graphics.width / 2 - drawn / 2
+        val top = graphics.height / 2 - drawn / 2
+        GlStateManager.enableAlphaTest()
         *///?}
 
-        blit(graphics, loc, drawn, drawn, -1)
-        val color = dynamicColor()
-        if (color.argb != -1) {
-            val tint = (color.argb and 0x00FFFFFF) or ((ModConfig.dynamicOpacity / 100f * 255f).toInt() shl 24)
-            blit(graphics, if (ModConfig.custom) (maskLoc ?: loc) else loc, drawn, drawn, tint)
+        texture.outline?.let { outline ->
+            drawLayer(graphics, outline, left, top, drawn, cells, spread, profile.outlineColor.get()?.argb ?: -0x1000000, inverted = false)
         }
 
-        //? if <1.21.6 {
-        pose.popPose()
-        //?} else {
-        /*pose.popPose();*///?}
+        val blending = profile.blendingEnabled.get() == true
+        val tint = if (blending) profile.blendingColor.get()?.argb ?: -0x1 else -0x1
+        drawLayer(graphics, texture.art, left, top, drawn, cells, spread, tint, inverted = blending)
+
+        healthTint(profile)?.let { color ->
+            drawLayer(graphics, texture.silhouette, left, top, drawn, cells, spread, color, inverted = false)
+        }
+
+        //? if <1.21 {
+        /*GlStateManager.color4f(1f, 1f, 1f, 1f)
+        mc.textureManager.bind(GuiElement.ICONS_LOCATION)
+        *///?} else if <1.21.4 {
+        /*if (vanillaVisible) {
+            invertingBlend()
+        } else {
+            RenderSystem.defaultBlendFunc()
+            RenderSystem.disableBlend()
+        }
+        *///?}
+
         return true
     }
 
-    private fun blit(graphics: GuiGraphics, loc: ResourceLocation, w: Int, h: Int, argb: Int) {
-        //? if <1.21.4 {
-        /*if (argb != -1) RenderSystem.setShaderColor(
-            (argb ushr 16 and 0xFF) / 255f, (argb ushr 8 and 0xFF) / 255f, (argb and 0xFF) / 255f, (argb ushr 24 and 0xFF) / 255f
-        )
-        graphics.blit(loc, 0, 0, 0f, 0f, w, h, texW, texH)
-        if (argb != -1) RenderSystem.setShaderColor(1f, 1f, 1f, 1f)
-        *///?} else if <1.21.6 {
-        val type = if (ModConfig.invertColor) RenderType::crosshair else RenderType::guiTextured
-        graphics.blit(type, loc, 0, 0, 0f, 0f, w, h, texW, texH, argb)
+    private fun visible(profile: CrosshairProfile, vanillaVisible: Boolean): Boolean {
+        //? if >=1.21 {
+        val firstPerson = mc.options.cameraType.isFirstPerson
         //?} else {
-        /*val pipeline = if (ModConfig.invertColor) RenderPipelines.CROSSHAIR else RenderPipelines.GUI_TEXTURED
-        graphics.blit(pipeline, loc, 0, 0, 0f, 0f, w, h, texW, texH, argb)
+        /*val firstPerson = mc.options.perspective == 0
         *///?}
+        if (!firstPerson && profile.showInThirdPerson.get() != true) return false
+        if (vanillaVisible) return true
+        if (HudManager.isDebugScreenVisible) return false
+        if (mc.player?.isSpectator == true) return profile.visibleInSpectator.get() == true
+        return !firstPerson
     }
 
-    private fun ensureTexture() {
-        val img = ModConfig.data.current.img
-        if (img == lastImg && texture != null) return
-        lastImg = img
-        val buf: BufferedImage = toBufferedImage(img) ?: return
-        texW = buf.width
-        texH = buf.height
-        texture?.close()
-        maskTexture?.close()
-        val (tex, tLoc) = upload("polycrosshair_tex", Base64.getDecoder().decode(img))
-        val (mask, mLoc) = upload("polycrosshair_mask", maskPng(buf))
-        texture = tex; textureLoc = tLoc
-        maskTexture = mask; maskLoc = mLoc
+    private fun scaleFactor(profile: CrosshairProfile): Float {
+        if (profile.customScaleEnabled.get() != true) return 1f
+        val scale = profile.customScale.get() ?: return 1f
+        //? if >=1.21 {
+        val current = mc.window.guiScale
+        //?} else {
+        /*val current = GuiGraphicsExtractor(mc).scale.toDouble()
+        *///?}
+        if (current <= 0.0) return 1f
+        return (scale / current).toFloat()
     }
 
-    private fun upload(id: String, bytes: ByteArray): Pair<DynamicTexture, ResourceLocation> {
-        val native = NativeImage.read(ByteArrayInputStream(bytes))
-        val tex = DynamicTexture(
-            //? if >=1.21.5 {
-            /*{ id },
+    private fun spread(profile: CrosshairProfile, factor: Float): Int {
+        val player = mc.player ?: return 0
+        var spread = 0f
+
+        if (profile.bowEnabled.get() == true) {
+            //? if >=1.21 {
+            val stack = if (player.isUsingItem) player.useItem else null
+            val item = stack?.item
+            val drawing = item is BowItem || item is CrossbowItem
+            val ticks = player.ticksUsingItem
+            //?} else {
+            /*val drawing = player.itemInUse?.item is BowItem
+            val ticks = player.remainingItemUseDuration
             *///?}
-            native
-        )
-        val loc = ResourceLocation.fromNamespaceAndPath("polycrosshair", id)
-        mc.textureManager.register(loc, tex)
-        return tex to loc
-    }
-
-    private fun maskPng(buf: BufferedImage): ByteArray {
-        val mask = BufferedImage(buf.width, buf.height, BufferedImage.TYPE_INT_ARGB)
-        for (y in 0 until buf.height) for (x in 0 until buf.width) {
-            if (buf.getRGB(x, y) ushr 24 != 0) mask.setRGB(x, y, -1)
+            if (drawing) {
+                val charge = (ticks / 20f).coerceIn(0f, 1f)
+                spread = max(spread, (1f - charge) * (profile.bowScale.get() ?: 1f))
+            }
         }
-        val out = ByteArrayOutputStream()
-        ImageIO.write(mask, "png", out)
-        return out.toByteArray()
+
+        //? if >=1.21 {
+        if (profile.attackEnabled.get() == true) {
+            val recovered = player.getAttackStrengthScale(0f).coerceIn(0f, 1f)
+            spread = max(spread, (1f - recovered) * (profile.attackScale.get() ?: 1f))
+        }
+        //?}
+
+        return (spread * factor).roundToInt()
     }
 
-    private fun shouldShow(): Boolean {
-        if (!ModConfig.showInDebug && HudManager.isDebugScreenVisible) return false
-        if (!ModConfig.showInGuis && HudManager.isGuiScreenOpen) return false
-        if (!ModConfig.showInThirdPerson && !mc.options.cameraType.isFirstPerson) return false
-        return !(mc.player != null && mc.player!!.isSpectator && !ModConfig.showInSpectator)
+    private fun healthTint(profile: CrosshairProfile): Int? {
+        if (profile.healthEnabled.get() != true) return null
+        val player = mc.player ?: return null
+        val threshold = profile.healthThreshold.get() ?: return null
+        if (player.health > threshold) return null
+        return profile.healthColor.get()?.argb
     }
 
-    private fun dynamicColor(): PolyColor {
-        if (!ModConfig.dynamicColor) return WHITE
-        val entity = (mc.hitResult as? EntityHitResult)?.entity ?: return WHITE
-        if (entity.isInvisible) return WHITE
-        val cat: MobCategory = entity.type.category
-        if (ModConfig.hostile && cat == MobCategory.MONSTER) return ModConfig.hostileColor
-        if (ModConfig.passive && (cat == MobCategory.CREATURE || cat == MobCategory.WATER_CREATURE ||
-                cat == MobCategory.WATER_AMBIENT || cat == MobCategory.AMBIENT)) return ModConfig.passiveColor
-        if (ModConfig.player && entity is Player) return ModConfig.playerColor
-        return WHITE
+    private fun drawLayer(
+        graphics: GuiGraphicsExtractor,
+        layer: CrosshairTexture.Layer,
+        left: Int,
+        top: Int,
+        drawn: Int,
+        cells: Int,
+        spread: Int,
+        argb: Int,
+        inverted: Boolean,
+    ) {
+        if (spread <= 0) {
+            blit(graphics, layer.location, left, top, drawn, drawn, 0f, 0f, layer.width, layer.height, layer.width, layer.height, argb, inverted)
+            return
+        }
+
+        val span = (cells + 1) / 2
+        val texels = layer.width / cells
+        val pixels = drawn.toFloat() / cells
+        val size = (span * pixels).roundToInt()
+
+        for (qy in 0..1) {
+            for (qx in 0..1) {
+                val cx = qx * (cells - span)
+                val cy = qy * (cells - span)
+                val dx = left + (cx * pixels).roundToInt() + if (qx == 0) -spread else spread
+                val dy = top + (cy * pixels).roundToInt() + if (qy == 0) -spread else spread
+                blit(
+                    graphics, layer.location, dx, dy, size, size,
+                    (cx * texels).toFloat(), (cy * texels).toFloat(), span * texels, span * texels,
+                    layer.width, layer.height, argb, inverted,
+                )
+            }
+        }
+    }
+
+    //? if >=1.21 && <1.21.4 {
+    /*private fun invertingBlend() {
+        RenderSystem.blendFuncSeparate(
+            com.mojang.blaze3d.platform.GlStateManager.SourceFactor.ONE_MINUS_DST_COLOR,
+            com.mojang.blaze3d.platform.GlStateManager.DestFactor.ONE_MINUS_SRC_COLOR,
+            com.mojang.blaze3d.platform.GlStateManager.SourceFactor.ONE,
+            com.mojang.blaze3d.platform.GlStateManager.DestFactor.ZERO,
+        )
+    }
+    *///?}
+
+    @Suppress("LongParameterList")
+    private fun blit(
+        graphics: GuiGraphicsExtractor,
+        location: ResourceLocation,
+        x: Int,
+        y: Int,
+        width: Int,
+        height: Int,
+        u: Float,
+        v: Float,
+        uWidth: Int,
+        vHeight: Int,
+        textureWidth: Int,
+        textureHeight: Int,
+        argb: Int,
+        inverted: Boolean,
+    ) {
+        //? if <1.21 {
+        /*mc.textureManager.bind(location)
+        if (inverted) {
+            GlStateManager.blendFuncSeparate(GL11.GL_ONE_MINUS_DST_COLOR, GL11.GL_ONE_MINUS_SRC_COLOR, GL11.GL_ONE, GL11.GL_ZERO)
+        } else {
+            GlStateManager.blendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ZERO)
+        }
+        GlStateManager.color4f(
+            (argb ushr 16 and 0xFF) / 255f,
+            (argb ushr 8 and 0xFF) / 255f,
+            (argb and 0xFF) / 255f,
+            (argb ushr 24 and 0xFF) / 255f,
+        )
+        GuiElement.drawTexture(x, y, u, v, uWidth, vHeight, width, height, textureWidth.toFloat(), textureHeight.toFloat())
+        *///?} else if <1.21.4 {
+        /*RenderSystem.enableBlend()
+        if (inverted) invertingBlend() else RenderSystem.defaultBlendFunc()
+        RenderSystem.setShaderColor(
+            (argb ushr 16 and 0xFF) / 255f,
+            (argb ushr 8 and 0xFF) / 255f,
+            (argb and 0xFF) / 255f,
+            (argb ushr 24 and 0xFF) / 255f,
+        )
+        graphics.blit(location, x, y, width, height, u, v, uWidth, vHeight, textureWidth, textureHeight)
+        RenderSystem.setShaderColor(1f, 1f, 1f, 1f)
+        *///?} else if <1.21.6 {
+        /*val type = if (inverted) RenderType::crosshair else RenderType::guiTextured
+        graphics.blit(type, location, x, y, u, v, width, height, uWidth, vHeight, textureWidth, textureHeight, argb)
+        *///?} else {
+        val pipeline = if (inverted) RenderPipelines.CROSSHAIR else RenderPipelines.GUI_TEXTURED
+        graphics.blit(pipeline, location, x, y, u, v, width, height, uWidth, vHeight, textureWidth, textureHeight, argb)
+        //?}
     }
 }

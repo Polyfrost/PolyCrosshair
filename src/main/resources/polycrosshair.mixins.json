@@ -8,6 +8,7 @@
     "maxShiftBy": 5
   },
   "client": [
-    "CrosshairMixin"
+    "CrosshairMixin",
+    "KeybindRecordingBusMixin"
   ]
 }

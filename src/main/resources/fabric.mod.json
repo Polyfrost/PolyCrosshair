@@ -1,9 +1,9 @@
 {
     "schemaVersion": 1,
-    "id": "${id}",
-    "version": "${version}",
-    "name": "${name}",
-    "description": "Draw and use your own custom crosshair.",
+    "id": "${mod_id}",
+    "version": "${mod_version}",
+    "name": "${mod_name}",
+    "description": "${mod_description}",
     "authors": [
         "Polyfrost"
     ],
@@ -26,9 +26,9 @@
         "polycrosshair.mixins.json"
     ],
     "depends": {
-        "minecraft": "${minecraft}",
-        "fabricloader": ">=0.15.11",
+        "minecraft": "${minecraft_version_range}",
+        "fabricloader": ">=${loader_version}",
         "fabric-language-kotlin": "*",
-        "oneconfigv1": ">=1.0.0-beta.6"
+        "oneconfigv1": ">=${oneconfig_version}"
     }
 }
