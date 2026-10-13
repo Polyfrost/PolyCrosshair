@@ -1,6 +1,7 @@
 package org.polyfrost.crosshair.config
 
 import org.polyfrost.oneconfig.api.config.v1.KtConfig
+import org.polyfrost.oneconfig.api.config.v1.Node
 import org.polyfrost.oneconfig.api.config.v1.Property
 import org.polyfrost.oneconfig.api.config.v1.Tree
 import org.polyfrost.oneconfig.api.toggle.v1.ModToggle
@@ -58,15 +59,8 @@ object ModConfig : KtConfig(
     }
 
     //? if >=1.21 {
-    private val elytraOptions: List<Property<*>> = buildList {
-        for (node in root.map.values) {
-            if (node.id?.startsWith("${elytra.key}_") != true) continue
-            when (node) {
-                is Property<*> -> add(node)
-                is Tree -> node.onAllProps { _, prop -> add(prop) }
-            }
-        }
-    }
+    private val elytraOptions: List<Property<*>> =
+        root.map.values.filter { it.id?.startsWith("${elytra.key}_") == true }.flatMap { it.props() }
 
     fun refreshElytraOptions() = elytraOptions.forEach { it.revaluateDisplay() }
     //?}
@@ -78,7 +72,7 @@ object ModConfig : KtConfig(
                 override fun setEnabled(enabled: Boolean) {}
             })
             root.getProp("enabled").description = Compat.forcedOffReason
-            root.onAllProps { _, prop -> prop.lockWhen { true } }
+            root.props().forEach { it.lockWhen { true } }
         }
         //? if >=1.21 {
         if (Compat.addonsInstalled) {
@@ -86,6 +80,12 @@ object ModConfig : KtConfig(
             elytraOptions.forEach { it.lockWhen { Compat.addonsElytra } }
         }
         //?}
+    }
+
+    private fun Node.props(): List<Property<*>> = when (this) {
+        is Property<*> -> listOf(this)
+        is Tree -> map.values.flatMap { it.props() }
+        else -> emptyList()
     }
 
     private fun Property<*>.lockWhen(locked: () -> Boolean) {

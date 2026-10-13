@@ -64,7 +64,6 @@ object CrosshairRenderer {
 
     fun render(graphics: GuiGraphicsExtractor, vanillaVisible: Boolean): Boolean {
         indicator = null
-        Compat.frame()
         if (Compat.forcedOff) return false
         if (ModConfig.enabled) {
             //? if >=1.21 {

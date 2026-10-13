@@ -24,8 +24,6 @@ object Compat {
 
     private var warned = false
 
-    private var lastAddonsElytra = false
-
     @JvmField
     val forcedOff = conflicting.isNotEmpty()
 
@@ -35,7 +33,9 @@ object Compat {
 
     val addonsElytra: Boolean get() = addonsElytraFlags?.all { it.getBoolean(null) } == true
 
-    fun frame() {
+    private var lastAddonsElytra = addonsElytra
+
+    fun tick() {
         warn()
         //? if >=1.21 {
         val elytra = addonsElytra
