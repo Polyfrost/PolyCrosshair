@@ -3,11 +3,14 @@ package org.polyfrost.crosshair.ui
 import org.polyfrost.crosshair.config.Circle
 import org.polyfrost.crosshair.config.CrosshairCircles
 import org.polyfrost.crosshair.config.CrosshairPixels
+import org.polyfrost.crosshair.config.Line
 import org.polyfrost.crosshair.config.MirrorMode
+import org.polyfrost.crosshair.config.VectorShape
+import kotlin.math.roundToInt
 
 internal class EditorState(var pixels: CrosshairPixels, var circles: CrosshairCircles) {
 
-    private class Snapshot(val argb: IntArray, val circles: List<Circle>)
+    private class Snapshot(val argb: IntArray, val circles: List<VectorShape>)
 
     private val undoStack = ArrayDeque<Snapshot>()
     private val redoStack = ArrayDeque<Snapshot>()
@@ -67,5 +70,29 @@ internal class EditorState(var pixels: CrosshairPixels, var circles: CrosshairCi
 
     private companion object {
         const val MAX_HISTORY = 128
+    }
+}
+
+internal fun mirrorShape(shape: VectorShape, mirror: MirrorMode, size: Int): List<VectorShape> {
+    val edge = size.toFloat()
+    val all = when (mirror) {
+        MirrorMode.NONE -> listOf(shape)
+        MirrorMode.HORIZONTAL -> listOf(shape, shape.flippedX(edge))
+        MirrorMode.VERTICAL -> listOf(shape, shape.flippedY(edge))
+        MirrorMode.QUADRANT -> listOf(shape, shape.flippedX(edge), shape.flippedY(edge), shape.flippedX(edge).flippedY(edge))
+    }
+    return all.distinctBy(::shapeKey)
+}
+
+internal fun removeMirrored(list: MutableList<VectorShape>, shape: VectorShape, mirror: MirrorMode, size: Int) {
+    val keys = mirrorShape(shape, mirror, size).mapTo(HashSet(), ::shapeKey)
+    list.removeAll { shapeKey(it) in keys }
+}
+
+private fun shapeKey(shape: VectorShape): Any {
+    fun q(v: Float) = (v * 1000f).roundToInt()
+    return when (shape) {
+        is Circle -> listOf(q(shape.x), q(shape.y), q(shape.radius), q(shape.thickness), shape.color)
+        is Line -> listOf(setOf(q(shape.x1) to q(shape.y1), q(shape.x2) to q(shape.y2)), q(shape.thickness), shape.color)
     }
 }

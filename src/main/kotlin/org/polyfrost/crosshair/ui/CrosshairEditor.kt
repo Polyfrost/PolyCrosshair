@@ -69,8 +69,10 @@ import org.polyfrost.crosshair.config.Circle
 import org.polyfrost.crosshair.config.CrosshairCircles
 import org.polyfrost.crosshair.config.CrosshairPixels
 import org.polyfrost.crosshair.config.CrosshairProfile
+import org.polyfrost.crosshair.config.Line
 import org.polyfrost.crosshair.config.MirrorMode
 import org.polyfrost.crosshair.config.ModConfig
+import org.polyfrost.crosshair.config.VectorShape
 import org.polyfrost.oneconfig.api.config.v1.Property
 import org.polyfrost.oneconfig.internal.ui.components.Chip
 import org.polyfrost.oneconfig.internal.ui.components.Icon
@@ -84,8 +86,12 @@ import org.polyfrost.oneconfig.internal.ui.themes.Accent
 import org.polyfrost.oneconfig.internal.ui.themes.LocalTheme
 import java.util.function.Predicate
 import kotlinx.coroutines.delay
+import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.atan2
+import kotlin.math.cos
 import kotlin.math.roundToInt
+import kotlin.math.sin
 import kotlin.math.sqrt
 
 private val CANVAS_SIZE = 304.dp
@@ -126,7 +132,7 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
     var mirror by remember(prop) { mutableStateOf(MirrorMode.NONE) }
     var tool by remember(prop) { mutableStateOf(Tool.PEN) }
     var thickness by remember(prop) { mutableStateOf(1f) }
-    var draft by remember(state) { mutableStateOf<Circle?>(null) }
+    var draft by remember(state) { mutableStateOf<VectorShape?>(null) }
     var guides by remember(prop) { mutableStateOf(true) }
     val pen = ModConfig.penColor.observe() ?: -0x1
     val favorites = remember(ModConfig.favorites.observe()) { ModConfig.favoriteList() }
@@ -241,14 +247,14 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
                             val down = press.changes.first()
                             val erasing = press.buttons.isSecondaryPressed
 
-                            if (tool == Tool.CIRCLE) {
+                            if (tool != Tool.PEN) {
                                 down.consume()
                                 val x = down.position.x / cell
                                 val y = down.position.y / cell
                                 if (erasing) {
-                                    val hit = state.circles.list.lastOrNull { it.distanceToRing(x, y) <= it.thickness / 2f + 0.5f }
+                                    val hit = state.circles.list.lastOrNull { it.distanceTo(x, y) <= it.thickness / 2f + 0.5f }
                                     if (hit != null) {
-                                        mutate { state.snapshot(); state.circles.list.remove(hit) }
+                                        mutate { state.snapshot(); removeMirrored(state.circles.list, hit, mirror, cells) }
                                         persist()
                                     }
                                     do {
@@ -263,16 +269,34 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
                                     val event = awaitPointerEvent()
                                     val change = event.changes.first()
                                     if (change.pressed) {
-                                        val dx = change.position.x / cell - cx
-                                        val dy = change.position.y / cell - cy
-                                        draft = Circle(cx, cy, sqrt(dx * dx + dy * dy), thickness, pen)
+                                        var dx = change.position.x / cell - cx
+                                        var dy = change.position.y / cell - cy
+                                        draft = if (tool == Tool.CIRCLE) {
+                                            Circle(cx, cy, sqrt(dx * dx + dy * dy), thickness, pen)
+                                        } else {
+                                            if (event.keyboardModifiers.isShiftPressed) {
+                                                val angle = (atan2(dy, dx) / SNAP_ANGLE).roundToInt() * SNAP_ANGLE
+                                                val length = sqrt(dx * dx + dy * dy)
+                                                dx = cos(angle) * length
+                                                dy = sin(angle) * length
+                                            }
+                                            Line(cx, cy, ((cx + dx) * 2f).roundToInt() / 2f, ((cy + dy) * 2f).roundToInt() / 2f, thickness, pen)
+                                        }
                                         change.consume()
                                     }
                                 } while (event.changes.any { it.pressed })
                                 val made = draft
                                 draft = null
-                                if (made != null && made.radius >= MIN_CIRCLE_RADIUS) {
-                                    mutate { state.snapshot(); state.circles.list.add(made) }
+                                val big = when (made) {
+                                    is Circle -> made.radius >= MIN_SHAPE_SIZE
+                                    is Line -> made.length >= MIN_SHAPE_SIZE
+                                    null -> false
+                                }
+                                if (made != null && big) {
+                                    mutate {
+                                        state.snapshot()
+                                        state.circles.list.addAll(mirrorShape(made, mirror, cells))
+                                    }
                                     persist()
                                 }
                                 return@awaitEachGesture
@@ -319,8 +343,8 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
                         }
                     }
 
-                    drawCircles(state.circles.list, cell)
-                    draft?.let { drawCircles(listOf(it), cell) }
+                    drawShapes(state.circles.list, cell)
+                    draft?.let { drawShapes(mirrorShape(it, mirror, cells), cell) }
 
                     if (cells <= 32) {
                         for (i in 1 until cells) {
@@ -411,10 +435,10 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
             Tool.entries.forEach { entry ->
                 Chip(entry.label, selected = tool == entry) { tool = entry }
             }
-            if (tool == Tool.CIRCLE) {
+            if (tool != Tool.PEN) {
                 Spacer(Modifier.width(12.dp))
                 Text("Thickness", color = theme.textColorSecondary, fontSize = 12.sp)
-                CIRCLE_THICKNESSES.forEach { value ->
+                SHAPE_THICKNESSES.forEach { value ->
                     val label = if (value % 1f == 0f) value.toInt().toString() else value.toString()
                     Chip(label, selected = thickness == value) { thickness = value }
                 }
@@ -466,7 +490,7 @@ private fun Favorite(entry: String, onLoad: () -> Unit, onRemove: () -> Unit) {
                     if (argb ushr 24 != 0) drawRect(Color(argb), Offset(x * cell, y * cell), Size(cell, cell))
                 }
             }
-            circles?.let { drawCircles(it.list, size.width / it.size) }
+            circles?.let { drawShapes(it.list, size.width / it.size) }
         }
         Box(
             Modifier
@@ -510,20 +534,24 @@ private val SHORTCUTS = listOf(
     "Z" to "Undo",
     "Y" to "Redo",
     "W" to "Cycle mirror mode",
-    "C" to "Switch between pen and circle",
+    "C" to "Cycle tools",
     "Circle: drag" to "Draw a circle from its center",
-    "Circle: right click" to "Remove a circle",
+    "Line: drag" to "Draw a line",
+    "Line: shift (hold)" to "Snap to 45°",
+    "Circle/Line: right click" to "Remove a shape",
 )
 
 private enum class Tool(val label: String) {
     PEN("Pen"),
-    CIRCLE("Circle");
+    CIRCLE("Circle"),
+    LINE("Line");
 
     fun next(): Tool = entries[(ordinal + 1) % entries.size]
 }
 
-private val CIRCLE_THICKNESSES = listOf(0.5f, 1f, 1.5f, 2f, 3f)
-private const val MIN_CIRCLE_RADIUS = 0.25f
+private val SHAPE_THICKNESSES = listOf(0.5f, 1f, 1.5f, 2f, 3f)
+private const val MIN_SHAPE_SIZE = 0.25f
+private const val SNAP_ANGLE = (PI / 4).toFloat()
 private const val FAVORITE_CIRCLES = "|"
 private const val SHARE_STATUS_MILLIS = 1500L
 private const val COPIED = "Copied!"
@@ -537,9 +565,12 @@ private fun favoriteOf(pixels: CrosshairPixels, circles: CrosshairCircles): Stri
 private fun splitFavorite(entry: String): Pair<String, String> =
     entry.substringBefore(FAVORITE_CIRCLES) to entry.substringAfter(FAVORITE_CIRCLES, "")
 
-private fun DrawScope.drawCircles(circles: List<Circle>, cell: Float) {
-    circles.forEach {
-        drawCircle(Color(it.color), it.radius * cell, Offset(it.x * cell, it.y * cell), style = Stroke(it.thickness * cell))
+private fun DrawScope.drawShapes(shapes: List<VectorShape>, cell: Float) {
+    shapes.forEach {
+        when (it) {
+            is Circle -> drawCircle(Color(it.color), it.radius * cell, Offset(it.x * cell, it.y * cell), style = Stroke(it.thickness * cell))
+            is Line -> drawLine(Color(it.color), Offset(it.x1 * cell, it.y1 * cell), Offset(it.x2 * cell, it.y2 * cell), it.thickness * cell)
+        }
     }
 }
 
