@@ -30,10 +30,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(
     //? if >=26.2 {
-    Hud.class
+    value = Hud.class,
     //?} else {
-    /*Gui.class
+    /*value = Gui.class,
     *///?}
+    priority = 1500
 )
 public abstract class CrosshairMixin {
 
