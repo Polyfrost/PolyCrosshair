@@ -1,10 +1,18 @@
 package org.polyfrost.crosshair.config
 
+import com.google.gson.JsonArray
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
+import com.google.gson.JsonPrimitive
 import org.polyfrost.compose.render.PolyColor
 import org.polyfrost.crosshair.ui.CrosshairEditor
 import org.polyfrost.oneconfig.api.config.v1.Property
 import org.polyfrost.oneconfig.api.config.v1.Tree
 import org.polyfrost.oneconfig.api.config.v1.Visualizer
+import java.io.ByteArrayOutputStream
+import java.util.Base64
+import java.util.zip.GZIPInputStream
+import java.util.zip.GZIPOutputStream
 
 class CrosshairProfile(
     root: Tree,
@@ -245,40 +253,100 @@ class CrosshairProfile(
         revision++
     }
 
+    private val shared: Map<String, Property<*>> = buildMap {
+        fun add(name: String, property: Property<*>?) {
+            if (property != null) put(name, property)
+        }
+        add("grid", gridSize)
+        add("stretch", resizeStretch)
+        add("image", image)
+        add("circles", circles)
+        add("offset_x", offsetX)
+        add("offset_y", offsetY)
+        add("orbit", orbitEnabled)
+        add("orbit_radius", orbitRadius)
+        add("attack_indicator_gap", attackIndicatorGap)
+        add("outline", outlineEnabled)
+        add("outline_thickness", outlineThickness)
+        add("outline_color", outlineColor)
+        add("blending", blendingEnabled)
+        add("blending_color", blendingColor)
+        add("health", healthEnabled)
+        add("health_threshold", healthThreshold)
+        add("health_color", healthColor)
+        add("bow", bowEnabled)
+        add("bow_scale", bowScale)
+        //? if >=1.21 {
+        add("attack", attackEnabled)
+        add("attack_scale", attackScale)
+        //?}
+        add("scale", customScaleEnabled)
+        add("scale_value", customScale)
+        add("third_person", showInThirdPerson)
+        add("spectator", visibleInSpectator)
+    }
+
     fun copyFrom(other: CrosshairProfile) {
         if (other === this) return
-        gridSize.set(other.gridSize.get())
-        resizeStretch.set(other.resizeStretch.get())
-        image.set(other.image.get())
-        circles.set(other.circles.get())
-
-        outlineEnabled.set(other.outlineEnabled.get())
-        outlineThickness.set(other.outlineThickness.get())
-        outlineColor.set(other.outlineColor.get())
-
-        blendingEnabled.set(other.blendingEnabled.get())
-        blendingColor.set(other.blendingColor.get())
-
-        healthEnabled.set(other.healthEnabled.get())
-        healthThreshold.set(other.healthThreshold.get())
-        healthColor.set(other.healthColor.get())
-
-        other.bowEnabled?.let { bowEnabled?.set(it.get()) }
-        other.bowScale?.let { bowScale?.set(it.get()) }
-
-        //? if >=1.21 {
-        other.attackEnabled?.let { attackEnabled?.set(it.get()) }
-        other.attackScale?.let { attackScale?.set(it.get()) }
-        //?}
-
-        customScaleEnabled.set(other.customScaleEnabled.get())
-        customScale.set(other.customScale.get())
-
-        showInThirdPerson.set(other.showInThirdPerson.get())
-
-        visibleInSpectator.set(other.visibleInSpectator.get())
-
+        for ((name, property) in shared) {
+            other.shared[name]?.let { property.setAny(it.get()) }
+        }
         revision++
         ModConfig.save()
     }
+
+    fun export(): String {
+        val json = JsonObject()
+        for ((name, property) in shared) {
+            when (val value = property.get()) {
+                is Boolean -> json.addProperty(name, value)
+                is Number -> json.addProperty(name, value)
+                is String -> json.addProperty(name, value)
+                is PolyColor -> json.add(name, JsonArray().apply {
+                    add(JsonPrimitive(value.rawArgb))
+                    add(JsonPrimitive(value.chroma))
+                    add(JsonPrimitive(value.chromaSpeed))
+                })
+            }
+        }
+        val bytes = ByteArrayOutputStream()
+        GZIPOutputStream(bytes).use { it.write(json.toString().toByteArray(Charsets.UTF_8)) }
+        return SHARE_PREFIX + Base64.getEncoder().encodeToString(bytes.toByteArray())
+    }
+
+    fun import(code: String): Boolean {
+        val json = decodeShare(code) ?: return false
+        val image = runCatching { json.get("image")?.asString }.getOrNull() ?: return false
+        if (CrosshairPixels.fromBase64(image) == null) return false
+        for ((name, property) in shared) {
+            val element = json.get(name) ?: continue
+            runCatching {
+                when (property.get()) {
+                    is Boolean -> element.asBoolean
+                    is Int -> element.asInt
+                    is Float -> element.asFloat
+                    is String -> element.asString
+                    is PolyColor -> element.asJsonArray.let { PolyColor(it[0].asInt, it[1].asBoolean, it[2].asFloat) }
+                    else -> null
+                }
+            }.getOrNull()?.let(property::setAny)
+        }
+        revision++
+        ModConfig.save()
+        return true
+    }
 }
+
+private const val SHARE_PREFIX = "PolyCrosshair-"
+
+@Suppress("UNCHECKED_CAST")
+private fun Property<*>.setAny(value: Any?) {
+    (this as Property<Any?>).set(value)
+}
+
+@Suppress("DEPRECATION")
+private fun decodeShare(code: String): JsonObject? = runCatching {
+    val bytes = Base64.getDecoder().decode(code.trim().removePrefix(SHARE_PREFIX))
+    val text = GZIPInputStream(bytes.inputStream()).use { String(it.readBytes(), Charsets.UTF_8) }
+    JsonParser().parse(text).asJsonObject
+}.getOrNull()

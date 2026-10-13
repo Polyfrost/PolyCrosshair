@@ -1,3 +1,5 @@
+@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+
 package org.polyfrost.crosshair.ui
 
 import androidx.compose.animation.animateColorAsState
@@ -54,6 +56,13 @@ import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.polyfrost.crosshair.config.Circle
@@ -63,16 +72,18 @@ import org.polyfrost.crosshair.config.CrosshairProfile
 import org.polyfrost.crosshair.config.MirrorMode
 import org.polyfrost.crosshair.config.ModConfig
 import org.polyfrost.oneconfig.api.config.v1.Property
-import org.polyfrost.oneconfig.internal.ui.api.settings.ColorOptionData
 import org.polyfrost.oneconfig.internal.ui.components.Chip
 import org.polyfrost.oneconfig.internal.ui.components.Icon
 import org.polyfrost.oneconfig.internal.ui.components.Text
 import org.polyfrost.oneconfig.internal.ui.components.onClick
 import org.polyfrost.oneconfig.internal.ui.components.rememberInteractionSource
-import org.polyfrost.oneconfig.internal.ui.components.settings.ColorOption
+import org.polyfrost.oneconfig.internal.ui.components.settings.ColorPickerModel
+import org.polyfrost.oneconfig.internal.ui.components.settings.ColorPickerPopup
+import org.polyfrost.oneconfig.internal.ui.components.settings.colorToHex
 import org.polyfrost.oneconfig.internal.ui.themes.Accent
 import org.polyfrost.oneconfig.internal.ui.themes.LocalTheme
 import java.util.function.Predicate
+import kotlinx.coroutines.delay
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
@@ -120,6 +131,15 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
     val pen = ModConfig.penColor.observe() ?: -0x1
     val favorites = remember(ModConfig.favorites.observe()) { ModConfig.favoriteList() }
     var helpOpen by remember(prop) { mutableStateOf(false) }
+    @Suppress("DEPRECATION")
+    val clipboard = LocalClipboardManager.current
+    var shareStatus by remember(prop) { mutableStateOf<String?>(null) }
+    LaunchedEffect(shareStatus) {
+        if (shareStatus != null) {
+            delay(SHARE_STATUS_MILLIS)
+            shareStatus = null
+        }
+    }
 
     val interaction = rememberInteractionSource()
     val hovered by interaction.collectIsHoveredAsState()
@@ -333,10 +353,20 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
                     persist()
                 }
                 EditorButton("Reset") { replace(profile.defaultImage) }
-                ColorOption(ColorOptionData(ModConfig.penColor))
+                PenColor()
                 EditorButton("Save") {
                     val current = favoriteOf(state.pixels, state.circles)
                     if (!state.isEmpty() && current !in favorites) ModConfig.setFavorites(favorites + current)
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    EditorButton(if (shareStatus == COPIED) COPIED else "Copy", Modifier.weight(1f)) {
+                        clipboard.setText(AnnotatedString(profile.export()))
+                        shareStatus = COPIED
+                    }
+                    EditorButton(if (shareStatus == INVALID) INVALID else "Paste", Modifier.weight(1f)) {
+                        val code = clipboard.getText()?.text
+                        shareStatus = if (code != null && profile.import(code)) null else INVALID
+                    }
                 }
                 Spacer(Modifier.weight(1f))
                 Box(
@@ -495,6 +525,9 @@ private enum class Tool(val label: String) {
 private val CIRCLE_THICKNESSES = listOf(0.5f, 1f, 1.5f, 2f, 3f)
 private const val MIN_CIRCLE_RADIUS = 0.25f
 private const val FAVORITE_CIRCLES = "|"
+private const val SHARE_STATUS_MILLIS = 1500L
+private const val COPIED = "Copied!"
+private const val INVALID = "Invalid"
 
 private fun favoriteOf(pixels: CrosshairPixels, circles: CrosshairCircles): String {
     val base64 = pixels.toBase64()
@@ -510,14 +543,52 @@ private fun DrawScope.drawCircles(circles: List<Circle>, cell: Float) {
     }
 }
 
+// OneConfig's ColorOption wraps its content and takes no modifier, so this rebuilds it at full width around the same picker popup.
 @Composable
-private fun EditorButton(text: String, enabled: Boolean = true, onClick: () -> Unit) {
+private fun PenColor() {
+    val theme = LocalTheme.current
+    val color = Color(ModConfig.penColor.observe() ?: -0x1)
+    val model = remember { ColorPickerModel(color, true) }
+    var expanded by remember { mutableStateOf(false) }
+    val content by animateColorAsState(if (color.luminance() > 0.6f) Color.Black else Color.White)
+    Box {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .pointerHoverIcon(PointerIcon.Hand)
+                .onClick(rememberInteractionSource()) { expanded = !expanded }
+                .background(color, theme.sideBarNavigationEntryShape)
+                .border(1.dp, theme.borderColor, theme.sideBarNavigationEntryShape)
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon("paintbrush", color = content, modifier = Modifier.size(14.dp))
+            Text("#${colorToHex(color)}", color = content, fontSize = 13.sp)
+        }
+        if (expanded) {
+            Popup(
+                alignment = Alignment.TopEnd,
+                offset = IntOffset(0, PICKER_OFFSET),
+                onDismissRequest = { expanded = false },
+                properties = PopupProperties(focusable = true),
+            ) {
+                ColorPickerPopup(model, { ModConfig.penColor.set(it.toArgb()) }, { expanded = false }, false)
+            }
+        }
+    }
+}
+
+private const val PICKER_OFFSET = 44
+
+@Composable
+private fun EditorButton(text: String, modifier: Modifier = Modifier, enabled: Boolean = true, onClick: () -> Unit) {
     val theme = LocalTheme.current
     val interactionSource = rememberInteractionSource()
     val isHovered by interactionSource.collectIsHoveredAsState()
     val bgColor by animateColorAsState(if (isHovered && enabled) Accent.copy(alpha = 0.75f) else Accent)
     Box(
-        Modifier
+        modifier
             .fillMaxWidth()
             .alpha(if (enabled) 1f else DISABLED_ALPHA)
             .pointerHoverIcon(PointerIcon.Hand)
