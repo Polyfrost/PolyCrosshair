@@ -1,2 +1,2 @@
 # 2.0.0
-- Write something here before you push idiot
+- Complete rewrite, 1.21.1+ support, 1.8 Ornithe support

@@ -17,6 +17,7 @@ import net.minecraft.world.item.CrossbowItem
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import net.minecraft.world.level.block.ShulkerBoxBlock
+import org.polyfrost.crosshair.Compat
 import org.polyfrost.crosshair.config.ModConfig
 //? if >=1.21.11 {
 import net.minecraft.resources.Identifier as ResourceLocation
@@ -42,7 +43,7 @@ object AttackIndicatorRenderer {
 
     private val mc: Minecraft get() = Minecraft.getInstance()
 
-    fun replacesVanilla(): Boolean = ModConfig.attackIndicator.enabled.get() == true
+    fun replacesVanilla(): Boolean = !Compat.forcedOff && ModConfig.attackIndicator.enabled.get() == true
 
     fun render(graphics: GuiGraphicsExtractor) {
         if (!replacesVanilla()) return

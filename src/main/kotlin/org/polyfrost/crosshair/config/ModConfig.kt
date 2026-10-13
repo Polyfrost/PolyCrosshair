@@ -1,8 +1,13 @@
 package org.polyfrost.crosshair.config
 
 import org.polyfrost.oneconfig.api.config.v1.KtConfig
+import org.polyfrost.oneconfig.api.config.v1.Node
 import org.polyfrost.oneconfig.api.config.v1.Property
 import org.polyfrost.oneconfig.api.config.v1.Tree
+import org.polyfrost.oneconfig.api.toggle.v1.ModToggle
+import org.polyfrost.oneconfig.api.ui.v1.ModToggles
+import org.polyfrost.crosshair.Compat
+import java.util.function.Supplier
 
 object ModConfig : KtConfig(
     "polycrosshair.json",
@@ -51,6 +56,41 @@ object ModConfig : KtConfig(
     fun setFavorites(list: List<String>) {
         favorites.set(list.joinToString(FAVORITE_SEPARATOR))
         save()
+    }
+
+    //? if >=1.21 {
+    private val elytraOptions: List<Property<*>> =
+        root.map.values.filter { it.id?.startsWith("${elytra.key}_") == true }.flatMap { it.props() }
+
+    fun refreshElytraOptions() = elytraOptions.forEach { it.revaluateDisplay() }
+    //?}
+
+    init {
+        if (Compat.forcedOff) {
+            ModToggles.register("polycrosshair", object : ModToggle {
+                override fun isEnabled() = false
+                override fun setEnabled(enabled: Boolean) {}
+            })
+            root.getProp("enabled").description = Compat.forcedOffReason
+            root.props().forEach { it.lockWhen { true } }
+        }
+        //? if >=1.21 {
+        if (Compat.addonsInstalled) {
+            elytra.enabled?.description = "Turned off while Crosshair Addons' elytra indicator is on."
+            elytraOptions.forEach { it.lockWhen { Compat.addonsElytra } }
+        }
+        //?}
+    }
+
+    private fun Node.props(): List<Property<*>> = when (this) {
+        is Property<*> -> listOf(this)
+        is Tree -> map.values.flatMap { it.props() }
+        else -> emptyList()
+    }
+
+    private fun Property<*>.lockWhen(locked: () -> Boolean) {
+        addDisplayCondition(Supplier { if (locked()) Property.Display.DISABLED else Property.Display.SHOWN })
+        revaluateDisplay()
     }
 
     fun profile(kind: TargetKind): CrosshairProfile = when (kind) {

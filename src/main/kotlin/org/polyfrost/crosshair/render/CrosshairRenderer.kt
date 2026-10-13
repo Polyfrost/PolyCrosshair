@@ -30,6 +30,7 @@ import net.minecraft.client.renderer.rendertype.RenderType
 //?} else if >=1.21.4 {
 /*import net.minecraft.client.renderer.RenderType
 *///?}
+import org.polyfrost.crosshair.Compat
 import org.polyfrost.crosshair.config.CrosshairProfile
 import org.polyfrost.crosshair.config.ModConfig
 import org.polyfrost.oneconfig.api.config.v1.Property
@@ -63,10 +64,11 @@ object CrosshairRenderer {
 
     fun render(graphics: GuiGraphicsExtractor, vanillaVisible: Boolean): Boolean {
         indicator = null
+        if (Compat.forcedOff) return false
         if (ModConfig.enabled) {
             //? if >=1.21 {
             val elytra = ModConfig.elytra
-            if (elytra.enabled?.get() == true && mc.player?.getItemBySlot(EquipmentSlot.CHEST)?.`is`(Items.ELYTRA) == true) {
+            if (elytra.enabled?.get() == true && !Compat.addonsElytra && mc.player?.getItemBySlot(EquipmentSlot.CHEST)?.`is`(Items.ELYTRA) == true) {
                 indicator = draw(graphics, elytra, vanillaVisible)
                 indicatorGap = elytra.attackIndicatorGap?.get()?.roundToInt() ?: 0
                 indicatorGuiWidth = graphics.guiWidth()
