@@ -12,6 +12,8 @@ PolyCrosshair lets you draw your own crosshair in a built-in pixel editor.
 - Undo and redo
 - Save the crosshairs you like and load them back later
 
+![Editor](.github/images/editor.gif)
+
 Shortcuts in the editor:
 
 - `Delete` clears the canvas
@@ -34,6 +36,10 @@ Shortcuts in the editor:
 - Dynamic crosshair that spreads while you draw a bow or after you attack (attack not on 1.8.9)
 - Custom scale that ignores your GUI scale
 - Show it in third person and while spectating
+
+![Outline options](.github/images/outline.gif)
+
+![Dynamic bow](.github/images/dynamic-bow.gif)
 
 ## Supported versions
 
