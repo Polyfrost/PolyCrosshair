@@ -3,12 +3,14 @@
   "compatibilityLevel": "${java}",
   "minVersion": "0.8",
   "package": "org.polyfrost.crosshair.mixin",
+  "plugin": "org.polyfrost.crosshair.CompatPlugin",
   "injectors": {
     "defaultRequire": 1,
     "maxShiftBy": 5
   },
   "client": [
     "CrosshairMixin",
+    "EntityCrosshairMixin",
     "KeybindRecordingBusMixin"
   ]
 }

@@ -4,13 +4,15 @@ import net.fabricmc.loader.api.FabricLoader
 import org.polyfrost.crosshair.config.ModConfig
 import org.polyfrost.oneconfig.api.notifications.v1.NotificationType
 import org.polyfrost.oneconfig.api.notifications.v1.Notifications
+import org.polyfrost.oneconfig.api.toggle.v1.ModToggle
+import org.polyfrost.oneconfig.api.ui.v1.ModToggles
 import java.lang.reflect.Field
 
 object Compat {
 
     private val conflicting = installed("dynamiccrosshair" to "Dynamic Crosshair", "custom-crosshair-mod" to "Custom Crosshair Mod")
 
-    private val replaced = installed("centered-crosshair" to "Centered Crosshair", "crosshairtweaks" to "Crosshair Tweaks")
+    private val replaced = installed("centered-crosshair" to "Centered Crosshair", "crosshairtweaks" to "Crosshair Tweaks", "entitycrosshair" to "Entity Crosshair")
 
     private val addonsElytraFlags: List<Field>? =
         if (FabricLoader.getInstance().isModLoaded("crosshairaddons")) {
@@ -28,6 +30,18 @@ object Compat {
     val forcedOff = conflicting.isNotEmpty()
 
     val forcedOffReason = "Turned off because ${conflicting.joinToString(" and ")} is installed. Remove it to use ${PolyCrosshair.NAME}."
+
+    @JvmStatic
+    fun overriding(): Boolean = !forcedOff && ModConfig.enabled
+
+    init {
+        if (FabricLoader.getInstance().isModLoaded("entitycrosshair")) {
+            ModToggles.register("entitycrosshair", object : ModToggle {
+                override fun isEnabled() = !overriding()
+                override fun setEnabled(enabled: Boolean) {}
+            })
+        }
+    }
 
     val addonsInstalled = addonsElytraFlags != null
 
