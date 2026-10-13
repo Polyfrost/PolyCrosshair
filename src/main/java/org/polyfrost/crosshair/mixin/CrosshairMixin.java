@@ -19,6 +19,7 @@ import net.minecraft.resources.Identifier;
 //?} else {
 /*import net.minecraft.resources.ResourceLocation;
 *///?}
+import org.polyfrost.crosshair.render.AttackIndicatorRenderer;
 import org.polyfrost.crosshair.render.CrosshairRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -114,6 +115,43 @@ public abstract class CrosshairMixin {
         return !CrosshairRenderer.INSTANCE.render(graphics, true);
     }
 
+    @WrapWithCondition(method = CROSSHAIR_METHOD, at = {
+        @At(value = "INVOKE", target = BLIT_SPRITE, ordinal = 1),
+        @At(value = "INVOKE", target = BLIT_SPRITE, ordinal = 2),
+    })
+    private boolean polycrosshair$hideVanillaAttackIndicator(
+        GuiGraphicsExtractor graphics,
+        //? if >=1.21.6 {
+        RenderPipeline pipeline,
+        //?} else if >=1.21.4 {
+        /*Function<?, ?> renderType,
+        *///?}
+        //? if >=1.21.11 {
+        Identifier sprite,
+        //?} else {
+        /*ResourceLocation sprite,
+        *///?}
+        int x, int y, int width, int height) {
+        return !AttackIndicatorRenderer.INSTANCE.replacesVanilla();
+    }
+
+    @WrapWithCondition(method = CROSSHAIR_METHOD, at = @At(value = "INVOKE", target = BLIT_SPRITE_REGION))
+    private boolean polycrosshair$hideVanillaAttackIndicatorProgress(
+        GuiGraphicsExtractor graphics,
+        //? if >=1.21.6 {
+        RenderPipeline pipeline,
+        //?} else if >=1.21.4 {
+        /*Function<?, ?> renderType,
+        *///?}
+        //? if >=1.21.11 {
+        Identifier sprite,
+        //?} else {
+        /*ResourceLocation sprite,
+        *///?}
+        int spriteWidth, int spriteHeight, int u, int v, int x, int y, int width, int height) {
+        return !AttackIndicatorRenderer.INSTANCE.replacesVanilla();
+    }
+
     @ModifyArg(method = CROSSHAIR_METHOD, at = @At(value = "INVOKE", target = BLIT_SPRITE, ordinal = 1), index = BLIT_Y)
     private int polycrosshair$moveAttackIndicator(int y) {
         return CrosshairRenderer.INSTANCE.attackIndicatorY(y);
@@ -138,7 +176,8 @@ public abstract class CrosshairMixin {
         *///?}
         , at = @At("RETURN"))
     private void polycrosshair$drawWhenVanillaHides(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker, CallbackInfo ci) {
-        if (!polycrosshair$spriteReached) CrosshairRenderer.INSTANCE.render(graphics, false);
+        if (polycrosshair$spriteReached) AttackIndicatorRenderer.INSTANCE.render(graphics);
+        else CrosshairRenderer.INSTANCE.render(graphics, false);
         polycrosshair$spriteReached = false;
     }
 }

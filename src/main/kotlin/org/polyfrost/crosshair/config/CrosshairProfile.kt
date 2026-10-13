@@ -68,6 +68,22 @@ class CrosshairProfile(
         min = -32f, max = 32f, def = 11f, step = 1f,
     ) else null
 
+    private val orbit = if (indicator) root.accordion(
+        id = "${key}_orbit",
+        title = "Follow Pitch",
+        description = "Swings this around the right side of the crosshair as you look up and down: level puts it to the right, 30° down puts it above, 30° up puts it below. Replaces Offset X and Offset Y while on.",
+        category = category,
+        def = true,
+    ) else null
+    val orbitEnabled: Property<Boolean>? = orbit?.second
+    val orbitRadius: Property<Float>? = orbit?.first?.slider(
+        id = "radius",
+        title = "Radius",
+        description = "How far from the crosshair this circles, in crosshair pixels.",
+        category = category,
+        min = 0f, max = 32f, def = 11f, step = 1f,
+    )
+
     val attackIndicatorGap: Property<Float>? = if (indicator) root.slider(
         id = "${key}_attack_indicator_gap",
         title = "Attack Indicator Gap",

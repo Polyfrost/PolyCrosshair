@@ -36,6 +36,12 @@ object ModConfig : KtConfig(
     ) { normal }
     //?}
 
+    val vanilla = VanillaCrosshair(root)
+
+    //? if >=1.21 {
+    val attackIndicator = AttackIndicator(root)
+    //?}
+
     val penColor: Property<Int> = root.hidden("pen_color", -0x1, Int::class.java)
 
     val favorites: Property<String> = root.hidden("favorites", "", String::class.java)

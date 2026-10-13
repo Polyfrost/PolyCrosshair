@@ -32,14 +32,26 @@ import net.minecraft.client.renderer.rendertype.RenderType
 *///?}
 import org.polyfrost.crosshair.config.CrosshairProfile
 import org.polyfrost.crosshair.config.ModConfig
+import org.polyfrost.oneconfig.api.config.v1.Property
 import org.polyfrost.oneconfig.api.hud.v1.HudManager
 import kotlin.math.ceil
+import kotlin.math.floor
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.math.max
 import kotlin.math.roundToInt
 
 object CrosshairRenderer {
 
     private const val MAX_TEXELS_PER_CELL = 16
+
+    private const val VANILLA_ART = 15
+
+    private const val FULL_SWING_PITCH = 30f
+
+    //? if >=1.21 {
+    private val VANILLA_SPRITE = ResourceLocation.withDefaultNamespace("hud/crosshair")
+    //?}
 
     private val mc: Minecraft get() = Minecraft.getInstance()
 
@@ -51,18 +63,21 @@ object CrosshairRenderer {
 
     fun render(graphics: GuiGraphicsExtractor, vanillaVisible: Boolean): Boolean {
         indicator = null
-        if (!ModConfig.enabled) return false
-
-        //? if >=1.21 {
-        val elytra = ModConfig.elytra
-        if (elytra.enabled?.get() == true && mc.player?.getItemBySlot(EquipmentSlot.CHEST)?.`is`(Items.ELYTRA) == true) {
-            indicator = draw(graphics, elytra, vanillaVisible)
-            indicatorGap = elytra.attackIndicatorGap?.get()?.roundToInt() ?: 0
-            indicatorGuiWidth = graphics.guiWidth()
+        if (ModConfig.enabled) {
+            //? if >=1.21 {
+            val elytra = ModConfig.elytra
+            if (elytra.enabled?.get() == true && mc.player?.getItemBySlot(EquipmentSlot.CHEST)?.`is`(Items.ELYTRA) == true) {
+                indicator = draw(graphics, elytra, vanillaVisible)
+                indicatorGap = elytra.attackIndicatorGap?.get()?.roundToInt() ?: 0
+                indicatorGuiWidth = graphics.guiWidth()
+            }
+            //?}
+            val drew = draw(graphics, ModConfig.profile(TargetClassifier.current()), vanillaVisible) != null
+            if (!drew && indicator == null) return true
+        } else {
+            if (ModConfig.vanilla.enabled.get() != true) return false
+            if (!drawVanilla(graphics, vanillaVisible)) return true
         }
-        //?}
-        val drew = draw(graphics, ModConfig.profile(TargetClassifier.current()), vanillaVisible) != null
-        if (!drew && indicator == null) return true
 
         //? if <1.21 {
         /*GlStateManager.color4f(1f, 1f, 1f, 1f)
@@ -79,15 +94,15 @@ object CrosshairRenderer {
         return true
     }
 
-    fun attackIndicatorY(y: Int): Int {
+    @JvmOverloads
+    fun attackIndicatorY(y: Int, x: Int = indicatorGuiWidth / 2 - 8): Int {
         val bounds = indicator ?: return y
-        val x = indicatorGuiWidth / 2 - 8
         val overlaps = bounds.left < x + 16 && bounds.left + bounds.size > x && bounds.top < y + 16 && bounds.top + bounds.size > y
         return if (overlaps) max(y, bounds.top + bounds.size + indicatorGap) else y
     }
 
     private fun draw(graphics: GuiGraphicsExtractor, profile: CrosshairProfile, vanillaVisible: Boolean): Bounds? {
-        if (!visible(profile, vanillaVisible)) return null
+        if (!visible(profile.showInThirdPerson, profile.visibleInSpectator, vanillaVisible)) return null
 
         val cells = profile.grid.cells
         val factor = scaleFactor(profile)
@@ -98,8 +113,9 @@ object CrosshairRenderer {
         val spread = spread(profile, factor)
 
         val perCell = drawn.toFloat() / cells
-        val shiftX = ((profile.offsetX?.get() ?: 0f) * perCell).roundToInt()
-        val shiftY = ((profile.offsetY?.get() ?: 0f) * perCell).roundToInt()
+        val (offsetX, offsetY) = offset(profile)
+        val shiftX = (offsetX * perCell).roundToInt()
+        val shiftY = (offsetY * perCell).roundToInt()
         //? if >=1.21 {
         val left = (graphics.guiWidth() - drawn) / 2 + shiftX
         val top = (graphics.guiHeight() - drawn) / 2 + shiftY
@@ -124,16 +140,103 @@ object CrosshairRenderer {
         return Bounds(left, top, drawn)
     }
 
-    private fun visible(profile: CrosshairProfile, vanillaVisible: Boolean): Boolean {
+    private fun offset(profile: CrosshairProfile): Pair<Float, Float> {
+        //? if >=1.21 {
+        if (profile.orbitEnabled?.get() == true) {
+            val pitch = Math.toRadians((-(mc.player?.xRot ?: 0f) * 90f / FULL_SWING_PITCH).coerceIn(-90f, 90f).toDouble())
+            val radius = profile.orbitRadius?.get() ?: 0f
+            return (cos(pitch) * radius).toFloat() to (sin(pitch) * radius).toFloat()
+        }
+        //?}
+        return (profile.offsetX?.get() ?: 0f) to (profile.offsetY?.get() ?: 0f)
+    }
+
+    private fun drawVanilla(graphics: GuiGraphicsExtractor, vanillaVisible: Boolean): Boolean {
+        val options = ModConfig.vanilla
+        if (!visible(options.showInThirdPerson, options.visibleInSpectator, vanillaVisible)) return false
+
+        val guiScale = guiScale()
+        val texelSize = if (options.customScaleEnabled.get() == true) options.customScale.get()?.toDouble() ?: guiScale else guiScale
+        val factor = (texelSize / guiScale).toFloat()
+        //? if >=1.21 {
+        val guiWidth = graphics.guiWidth()
+        val guiHeight = graphics.guiHeight()
+        val screenWidth = mc.window.width
+        val screenHeight = mc.window.height
+        val vanillaLeft = (guiWidth - VANILLA_ART) / 2
+        val vanillaTop = (guiHeight - VANILLA_ART) / 2
+        //?} else {
+        /*val screenWidth = mc.width
+        val screenHeight = mc.height
+        val vanillaLeft = graphics.width / 2 - 7
+        val vanillaTop = graphics.height / 2 - 7
+        *///?}
+
+        val left: Float
+        val top: Float
+        if (options.fixCentering.get() == true) {
+            val art = VANILLA_ART * texelSize
+            left = (floor((screenWidth - art) / 2) / guiScale).toFloat()
+            top = (floor((screenHeight - art) / 2) / guiScale).toFloat()
+        } else {
+            val shift = VANILLA_ART / 2f * (1f - factor)
+            left = vanillaLeft + shift
+            top = vanillaTop + shift
+        }
+
+        val blending = options.blendingEnabled.get() == true
+        val argb = (if (blending) options.blendingColor else options.color).get()?.argb ?: -0x1
+
+        //? if >=1.21 {
+        val pose = graphics.pose()
+        pose.pushMatrix()
+        //? if >=1.21.6 {
+        pose.translate(left, top)
+        pose.scale(factor, factor)
+        //?} else {
+        /*pose.translate(left, top, 0f)
+        pose.scale(factor, factor, 1f)
+        *///?}
+        //? if >=1.21.6 {
+        val pipeline = if (blending) RenderPipelines.CROSSHAIR else RenderPipelines.GUI_TEXTURED
+        graphics.blitSprite(pipeline, VANILLA_SPRITE, 0, 0, VANILLA_ART, VANILLA_ART, argb)
+        //?} else if >=1.21.4 {
+        /*val type = if (blending) RenderType::crosshair else RenderType::guiTextured
+        graphics.blitSprite(type, VANILLA_SPRITE, 0, 0, VANILLA_ART, VANILLA_ART, argb)
+        *///?} else {
+        /*RenderSystem.enableBlend()
+        if (blending) invertingBlend() else RenderSystem.defaultBlendFunc()
+        RenderSystem.setShaderColor(
+            (argb ushr 16 and 0xFF) / 255f,
+            (argb ushr 8 and 0xFF) / 255f,
+            (argb and 0xFF) / 255f,
+            (argb ushr 24 and 0xFF) / 255f,
+        )
+        graphics.blitSprite(VANILLA_SPRITE, 0, 0, VANILLA_ART, VANILLA_ART)
+        RenderSystem.setShaderColor(1f, 1f, 1f, 1f)
+        *///?}
+        pose.popMatrix()
+        //?} else {
+        /*GlStateManager.enableAlphaTest()
+        GL11.glPushMatrix()
+        GL11.glTranslatef(left, top, 0f)
+        GL11.glScalef(factor, factor, 1f)
+        blit(graphics, GuiElement.ICONS_LOCATION, 0, 0, 16, 16, 0f, 0f, 16, 16, 256, 256, argb, blending)
+        GL11.glPopMatrix()
+        *///?}
+        return true
+    }
+
+    private fun visible(showInThirdPerson: Property<Boolean>, visibleInSpectator: Property<Boolean>, vanillaVisible: Boolean): Boolean {
         //? if >=1.21 {
         val firstPerson = mc.options.cameraType.isFirstPerson
         //?} else {
         /*val firstPerson = mc.options.perspective == 0
         *///?}
-        if (!firstPerson && profile.showInThirdPerson.get() != true) return false
+        if (!firstPerson && showInThirdPerson.get() != true) return false
         if (vanillaVisible) return true
         if (HudManager.isDebugScreenVisible) return false
-        if (mc.player?.isSpectator == true) return profile.visibleInSpectator.get() == true
+        if (mc.player?.isSpectator == true) return visibleInSpectator.get() == true
         return !firstPerson
     }
 
@@ -227,7 +330,7 @@ object CrosshairRenderer {
     }
 
     //? if >=1.21 && <1.21.4 {
-    /*private fun invertingBlend() {
+    /*internal fun invertingBlend() {
         RenderSystem.blendFuncSeparate(
             com.mojang.blaze3d.platform.GlStateManager.SourceFactor.ONE_MINUS_DST_COLOR,
             com.mojang.blaze3d.platform.GlStateManager.DestFactor.ONE_MINUS_SRC_COLOR,
