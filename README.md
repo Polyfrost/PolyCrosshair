@@ -1,5 +1,6 @@
 # PolyCrosshair
 
+[![Modrinth downloads](https://img.shields.io/modrinth/dt/obfJASPU?style=flat&logo=modrinth&label=Modrinth&color=1bd96a)](https://modrinth.com/mod/crosshair)
 [![CurseForge downloads](https://img.shields.io/curseforge/dt/1147783?style=flat&logo=curseforge&label=CurseForge&color=f16436)](https://www.curseforge.com/minecraft/mc-mods/polycrosshair)
 
 PolyCrosshair lets you draw your own crosshair in a built-in pixel editor.
