@@ -313,6 +313,7 @@ class CrosshairProfile(
     }
 
     fun import(code: String): Boolean {
+        if (code.trim().startsWith(LUNAR_PREFIX)) return importLunar(code)
         val json = decodeShare(code) ?: return false
         val image = runCatching { json.get("image")?.asString }.getOrNull() ?: return false
         if (CrosshairPixels.fromBase64(image) == null) return false
@@ -333,9 +334,19 @@ class CrosshairProfile(
         ModConfig.save()
         return true
     }
+
+    private fun importLunar(code: String): Boolean {
+        val pixels = CrosshairPixels.fromLunar(code) ?: return false
+        val grid = GridSize.fitting(pixels.size)
+        gridSize.set(grid.ordinal)
+        write(pixels.resized(grid.cells, stretch = false), CrosshairCircles(grid.cells))
+        ModConfig.save()
+        return true
+    }
 }
 
 private const val SHARE_PREFIX = "PolyCrosshair-"
+private const val LUNAR_PREFIX = "LCCH-"
 
 @Suppress("UNCHECKED_CAST")
 private fun Property<*>.setAny(value: Any?) {

@@ -4,6 +4,7 @@ import java.awt.image.BufferedImage
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.util.Base64
+import java.util.zip.InflaterInputStream
 import javax.imageio.ImageIO
 import kotlin.math.ceil
 import kotlin.math.min
@@ -171,6 +172,20 @@ class CrosshairPixels(val size: Int, val argb: IntArray = IntArray(size * size))
         } catch (_: Exception) {
             null
         }
+
+        fun fromLunar(code: String): CrosshairPixels? = runCatching {
+            val (_, sizeText, data) = code.trim().split('-', limit = 3)
+            val size = sizeText.toInt()
+            if (size !in 1..GridSize.MAX) return null
+            val raw = Base64.getDecoder().decode(data.takeWhile { it.isLetterOrDigit() || it == '+' || it == '/' })
+            val bytes = runCatching { InflaterInputStream(raw.inputStream()).use { it.readBytes() } }.getOrDefault(raw)
+            if (bytes.size * 8 < size * size) return null
+            val out = CrosshairPixels(size)
+            for (i in 0 until size * size) {
+                if (bytes[i / 8].toInt() shr (i % 8) and 1 != 0) out.argb[i] = -1
+            }
+            out
+        }.getOrNull()
 
         fun fromImage(img: BufferedImage): CrosshairPixels? {
             if (img.width <= 0 || img.width != img.height) return null
