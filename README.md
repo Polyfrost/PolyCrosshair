@@ -1,52 +1,54 @@
-<img align="right" src="src/main/resources/assets/polycrosshair/polycrosshair.svg" alt="PolyCrosshair Icon"/>
-
 # PolyCrosshair
 
-![Compact Powered by OneConfig](https://polyfrost.org/img/compact_vector.svg)  ![Dev Workflow Status](https://img.shields.io/github/v/release/Polyfrost/PolyCrosshair.svg?style=for-the-badge&color=1452cc&label=release)
+[![CurseForge downloads](https://img.shields.io/curseforge/dt/1147783?style=flat&logo=curseforge&label=CurseForge&color=f16436)](https://www.curseforge.com/minecraft/mc-mods/polycrosshair)
 
-Draw and use your own custom crosshair.
+PolyCrosshair lets you draw your own crosshair in a built-in pixel editor.
 
-## Features
+### Editor
 
-- **Three crosshairs** — a normal one, plus separate crosshairs that take over while you are looking
-  at a friendly or an enemy entity. Either can be copied from the normal one with a single button.
-- **Pixel editor** with four grid sizes (0.5x, 1x, 2x and 3x), mirror modes, guides, direction
-  locking and undo/redo.
-- **Outline** with configurable thickness and color.
-- **Vanilla blending**, drawing the crosshair through Minecraft's inverting blend so it stays
-  readable against any background.
-- **Health color shift** once you drop below a health threshold.
-- **Dynamic bow and attack** animations that spread the crosshair while a shot charges or an attack
-  cooldown recovers.
-- **Custom scale**, independent of the game's GUI scale.
-- Toggles for third person and spectator mode.
+- Four canvas sizes, from 7x7 up to 63x63
+- A pen and a circle tool
+- Mirror your strokes horizontally, vertically or both
+- Undo and redo
+- Save the crosshairs you like and load them back later
 
-### Editor shortcuts
+![Editor](.github/images/editor.gif)
 
-| Input          | Action                |
-|----------------|-----------------------|
-| Left click     | Draw a pixel          |
-| Right click    | Erase a pixel         |
-| `Delete`       | Clear the canvas      |
-| `S`            | Toggle guides         |
-| `Shift` (hold) | Lock to one direction |
-| `Z`            | Undo                  |
-| `Y`            | Redo                  |
-| `W`            | Cycle the mirror mode |
+Shortcuts in the editor:
+
+- `Delete` clears the canvas
+- `S` shows or hides the guide lines
+- Hold `Shift` to lock a stroke to one direction
+- `Z` and `Y` undo and redo
+- `W` switches the mirror mode
+- `C` switches between pen and circle
+
+### More crosshairs
+
+- Draw separate crosshairs for when you look at a friendly or an enemy target (teammates and animals count as friendly)
+- An elytra indicator below the crosshair while you're wearing one (1.21.1+)
+
+### Options
+
+- Outline with a custom color and thickness
+- Vanilla-style blending that inverts the colors behind the crosshair
+- Change color when your health gets low
+- Dynamic crosshair that spreads while you draw a bow or after you attack (attack not on 1.8.9)
+- Custom scale that ignores your GUI scale
+- Show it in third person and while spectating
+
+![Outline options](.github/images/outline.gif)
+
+![Dynamic bow](.github/images/dynamic-bow.gif)
 
 ## Supported versions
 
-Minecraft 1.21.1, 1.21.4, 1.21.5, 1.21.8, 1.21.10, 1.21.11, 26.1, 26.2 and 26.3, on Fabric.
+- Minecraft 1.8.9 on Ornithe.
+- Minecraft 1.21.1-26.3 on Fabric.
 
-## Building
+PolyCrosshair needs [OneConfig](https://modrinth.com/mod/oneconfig) and Fabric Language Kotlin.
 
-```sh
-./gradlew ":26.3:build"          # build one version
-./gradlew "Set active project to 26.3"   # switch the working tree to a version
-```
+## Support
 
-Minecraft 26.1 and newer need a JDK 25; everything older needs a JDK 21.
-
-## Gallery
-
-![settings-page.png](images/settings-page.png)
+- Report bugs and ask questions on the [Polyfrost Discord](https://polyfrost.org/discord).
+- Check [Polyfrost Status](https://status.polyfrost.org/) if a Polyfrost service is down.
