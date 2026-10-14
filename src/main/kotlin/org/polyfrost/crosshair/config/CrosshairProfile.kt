@@ -28,15 +28,13 @@ class CrosshairProfile(
     var revision: Int = 0
         private set
 
-    val enabled: Property<Boolean>? = copySource?.let {
-        root.switch(
-            id = "${key}_enabled",
-            title = "Use $category Crosshair",
-            description = enabledDescription,
-            category = category,
-            def = enabledDefault,
-        )
-    }
+    val enabled: Property<Boolean> = root.switch(
+        id = "${key}_enabled",
+        title = "Use $category Crosshair",
+        description = enabledDescription,
+        category = category,
+        def = enabledDefault,
+    )
 
     @Suppress("unused")
     private val copyButton: Property<Void>? = copySource?.let { source ->

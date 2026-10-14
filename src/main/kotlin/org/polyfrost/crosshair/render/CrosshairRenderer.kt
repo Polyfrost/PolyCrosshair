@@ -65,20 +65,29 @@ object CrosshairRenderer {
     fun render(graphics: GuiGraphicsExtractor, vanillaVisible: Boolean): Boolean {
         indicator = null
         if (Compat.forcedOff) return false
-        if (ModConfig.enabled) {
+        val profile = if (ModConfig.enabled) {
             //? if >=1.21 {
             val elytra = ModConfig.elytra
-            if (elytra.enabled?.get() == true && !Compat.addonsElytra && mc.player?.getItemBySlot(EquipmentSlot.CHEST)?.`is`(Items.ELYTRA) == true) {
+            if (elytra.enabled.get() == true && !Compat.addonsElytra && mc.player?.getItemBySlot(EquipmentSlot.CHEST)?.`is`(Items.ELYTRA) == true) {
                 indicator = draw(graphics, elytra, vanillaVisible)
                 indicatorGap = elytra.attackIndicatorGap?.get()?.roundToInt() ?: 0
                 indicatorGuiWidth = graphics.guiWidth()
             }
             //?}
-            val drew = draw(graphics, ModConfig.profile(TargetClassifier.current()), vanillaVisible) != null
-            if (!drew && indicator == null) return true
-        } else {
-            if (ModConfig.vanilla.enabled.get() != true) return false
-            if (!drawVanilla(graphics, vanillaVisible)) return true
+            ModConfig.profile(TargetClassifier.current())
+        } else null
+
+        val replaced = when {
+            profile != null -> {
+                if (draw(graphics, profile, vanillaVisible) == null && indicator == null) return true
+                true
+            }
+            ModConfig.vanilla.enabled.get() == true -> {
+                if (!drawVanilla(graphics, vanillaVisible) && indicator == null) return true
+                true
+            }
+            indicator == null -> return false
+            else -> false
         }
 
         //? if <1.21 {
@@ -93,7 +102,7 @@ object CrosshairRenderer {
         }
         *///?}
 
-        return true
+        return replaced
     }
 
     @JvmOverloads

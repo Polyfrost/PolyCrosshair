@@ -1,6 +1,7 @@
 package org.polyfrost.crosshair.config
 
 //? if >=1.21 {
+import org.polyfrost.compose.render.PolyColor
 import org.polyfrost.oneconfig.api.config.v1.Property
 import org.polyfrost.oneconfig.api.config.v1.Tree
 
@@ -11,6 +12,29 @@ class AttackIndicator(root: Tree) {
         title = "Customize Attack Indicator",
         description = "Replaces the vanilla crosshair attack indicator with this one. The attack cooldown still follows the vanilla Attack Indicator setting.",
         category = CATEGORY,
+    )
+
+    private val blending = root.accordion(
+        id = "attack_indicator_blending",
+        title = "Vanilla Blending",
+        description = "Inverts the colors behind the indicator so it shows up on any background.",
+        category = CATEGORY,
+        def = true,
+    )
+    val blendingEnabled: Property<Boolean> = blending.second
+    val blendingColor: Property<PolyColor> = blending.first.color(
+        id = "color",
+        title = "Blending Color",
+        category = CATEGORY,
+        def = PolyColor.rgba(255, 255, 255, 255),
+    )
+
+    val color: Property<PolyColor> = root.color(
+        id = "attack_indicator_color",
+        title = "Color",
+        description = "The indicator's color while Vanilla Blending is off.",
+        category = CATEGORY,
+        def = PolyColor.rgba(255, 255, 255, 255),
     )
 
     val offsetX: Property<Float> = root.slider(

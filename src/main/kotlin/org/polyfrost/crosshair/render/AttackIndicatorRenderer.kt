@@ -60,22 +60,31 @@ object AttackIndicatorRenderer {
         val progress = customProgress(player)
         if (progress == null && !showAttack) return
 
+        val blending = ModConfig.attackIndicator.blendingEnabled.get() == true
+        val argb = (if (blending) ModConfig.attackIndicator.blendingColor else ModConfig.attackIndicator.color).get()?.argb ?: -0x1
         //? if <1.21.4 {
         /*RenderSystem.enableBlend()
-        CrosshairRenderer.invertingBlend()
+        if (blending) CrosshairRenderer.invertingBlend() else RenderSystem.defaultBlendFunc()
+        RenderSystem.setShaderColor(
+            (argb ushr 16 and 0xFF) / 255f,
+            (argb ushr 8 and 0xFF) / 255f,
+            (argb and 0xFF) / 255f,
+            (argb ushr 24 and 0xFF) / 255f,
+        )
         *///?}
         if (progress != null) {
-            bar(graphics, x, y, progress)
+            bar(graphics, x, y, progress, blending, argb)
         } else {
             val strength = player.getAttackStrengthScale(0f)
             if (fullyCharged(player, strength)) {
-                sprite(graphics, FULL, x, y, 16, 16)
+                sprite(graphics, FULL, x, y, 16, 16, blending, argb)
             } else if (strength < 1f) {
-                bar(graphics, x, y, strength)
+                bar(graphics, x, y, strength, blending, argb)
             }
         }
         //? if <1.21.4 {
-        /*RenderSystem.defaultBlendFunc()
+        /*RenderSystem.setShaderColor(1f, 1f, 1f, 1f)
+        RenderSystem.defaultBlendFunc()
         RenderSystem.disableBlend()
         *///?}
     }
@@ -149,17 +158,18 @@ object AttackIndicatorRenderer {
         return strength >= 1f && player.currentItemAttackStrengthDelay > 5f && target.isAlive
     }
 
-    private fun bar(graphics: GuiGraphicsExtractor, x: Int, y: Int, progress: Float) {
-        sprite(graphics, BACKGROUND, x, y, 16, 4)
+    private fun bar(graphics: GuiGraphicsExtractor, x: Int, y: Int, progress: Float, blending: Boolean, argb: Int) {
+        sprite(graphics, BACKGROUND, x, y, 16, 4, blending, argb)
         val width = (progress.coerceIn(0f, 1f) * 17f).toInt()
-        if (width > 0) spriteRegion(graphics, PROGRESS, 16, 4, 0, 0, x, y, width, 4)
+        if (width > 0) spriteRegion(graphics, PROGRESS, 16, 4, 0, 0, x, y, width, 4, blending, argb)
     }
 
-    private fun sprite(graphics: GuiGraphicsExtractor, id: ResourceLocation, x: Int, y: Int, width: Int, height: Int) {
+    @Suppress("LongParameterList")
+    private fun sprite(graphics: GuiGraphicsExtractor, id: ResourceLocation, x: Int, y: Int, width: Int, height: Int, blending: Boolean, argb: Int) {
         //? if >=1.21.6 {
-        graphics.blitSprite(RenderPipelines.CROSSHAIR, id, x, y, width, height)
+        graphics.blitSprite(if (blending) RenderPipelines.CROSSHAIR else RenderPipelines.GUI_TEXTURED, id, x, y, width, height, argb)
         //?} else if >=1.21.4 {
-        /*graphics.blitSprite(RenderType::crosshair, id, x, y, width, height)
+        /*graphics.blitSprite(if (blending) RenderType::crosshair else RenderType::guiTextured, id, x, y, width, height, argb)
         *///?} else {
         /*graphics.blitSprite(id, x, y, width, height)
         *///?}
@@ -177,11 +187,17 @@ object AttackIndicatorRenderer {
         y: Int,
         width: Int,
         height: Int,
+        blending: Boolean,
+        argb: Int,
     ) {
         //? if >=1.21.6 {
-        graphics.blitSprite(RenderPipelines.CROSSHAIR, id, spriteWidth, spriteHeight, u, v, x, y, width, height)
+        val pipeline = if (blending) RenderPipelines.CROSSHAIR else RenderPipelines.GUI_TEXTURED
+        graphics.blitSprite(pipeline, id, spriteWidth, spriteHeight, u, v, x, y, width, height, argb)
         //?} else if >=1.21.4 {
-        /*graphics.blitSprite(RenderType::crosshair, id, spriteWidth, spriteHeight, u, v, x, y, width, height)
+        /*val type = if (blending) RenderType::crosshair else RenderType::guiTextured
+        graphics.enableScissor(x, y, x + width, y + height)
+        graphics.blitSprite(type, id, x - u, y - v, spriteWidth, spriteHeight, argb)
+        graphics.disableScissor()
         *///?} else {
         /*graphics.blitSprite(id, spriteWidth, spriteHeight, u, v, x, y, width, height)
         *///?}

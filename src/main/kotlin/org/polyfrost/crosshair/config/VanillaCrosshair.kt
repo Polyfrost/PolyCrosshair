@@ -9,7 +9,7 @@ class VanillaCrosshair(root: Tree) {
     val enabled: Property<Boolean> = root.switch(
         id = "vanilla_enabled",
         title = "Customize Vanilla Crosshair",
-        description = "Applies these settings to the vanilla crosshair while the custom crosshair is turned off.",
+        description = "Applies these settings to the vanilla crosshair whenever it's showing instead of your custom one.",
         category = CATEGORY,
     )
 

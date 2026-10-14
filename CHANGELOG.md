@@ -1,2 +1,3 @@
-# 2.0.0
-- Complete rewrite, 1.21.1+ support, 1.8 Ornithe support
+# 2.0.2
+- Added color option to attack indicator
+- Made config options darken when disabled

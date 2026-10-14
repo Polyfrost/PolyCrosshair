@@ -7,6 +7,7 @@ import org.polyfrost.oneconfig.api.config.v1.Tree
 import org.polyfrost.oneconfig.api.toggle.v1.ModToggle
 import org.polyfrost.oneconfig.api.ui.v1.ModToggles
 import org.polyfrost.crosshair.Compat
+import java.util.function.Predicate
 import java.util.function.Supplier
 
 object ModConfig : KtConfig(
@@ -25,7 +26,11 @@ object ModConfig : KtConfig(
 
     private val root: Tree = makeTree()
 
-    val normal = CrosshairProfile(root, "normal", "Normal")
+    val normal = CrosshairProfile(
+        root, "normal", "Normal",
+        enabledDescription = "Shows this crosshair when you aren't looking at a friendly or enemy target. Turn this off to use the vanilla crosshair instead.",
+        enabledDefault = true,
+    )
 
     val friendly = CrosshairProfile(root, "friendly", "Friendly") { normal }
 
@@ -59,13 +64,39 @@ object ModConfig : KtConfig(
     }
 
     //? if >=1.21 {
-    private val elytraOptions: List<Property<*>> =
-        root.map.values.filter { it.id?.startsWith("${elytra.key}_") == true }.flatMap { it.props() }
+    private val elytraOptions: List<Property<*>> = options(elytra.key)
 
     fun refreshElytraOptions() = elytraOptions.forEach { it.revaluateDisplay() }
     //?}
 
     init {
+        //? if >=1.21 {
+        val profiles = listOf(normal, friendly, enemy, elytra)
+        //?} else {
+        /*val profiles = listOf(normal, friendly, enemy)
+        *///?}
+        for (profile in profiles) {
+            options(profile.key).forEach { if (it !== profile.enabled) it.disableWhen(profile.enabled, false) }
+            profile.orbitEnabled?.let { orbit ->
+                profile.offsetX?.disableWhen(orbit, true)
+                profile.offsetY?.disableWhen(orbit, true)
+            }
+        }
+
+        options("vanilla").forEach { if (it !== vanilla.enabled) it.disableWhen(vanilla.enabled, false) }
+        vanilla.color.disableWhen(vanilla.blendingEnabled, true)
+
+        //? if >=1.21 {
+        options("attack_indicator").forEach { if (it !== attackIndicator.enabled) it.disableWhen(attackIndicator.enabled, false) }
+        attackIndicator.color.disableWhen(attackIndicator.blendingEnabled, true)
+        //?}
+
+        for (accordion in root.map.values.filterIsInstance<Tree>()) {
+            @Suppress("UNCHECKED_CAST")
+            val head = accordion.map["enabled"] as? Property<Boolean> ?: continue
+            accordion.props().forEach { if (it !== head) it.disableWhen(head, false) }
+        }
+
         if (Compat.forcedOff) {
             ModToggles.register("polycrosshair", object : ModToggle {
                 override fun isEnabled() = false
@@ -76,11 +107,14 @@ object ModConfig : KtConfig(
         }
         //? if >=1.21 {
         if (Compat.addonsInstalled) {
-            elytra.enabled?.description = "Turned off while Crosshair Addons' elytra indicator is on."
+            elytra.enabled.description = "Turned off while Crosshair Addons' elytra indicator is on."
             elytraOptions.forEach { it.lockWhen { Compat.addonsElytra } }
         }
         //?}
     }
+
+    private fun options(key: String): List<Property<*>> =
+        root.map.values.filter { it.id?.startsWith("${key}_") == true }.flatMap { it.props() }
 
     private fun Node.props(): List<Property<*>> = when (this) {
         is Property<*> -> listOf(this)
@@ -88,15 +122,23 @@ object ModConfig : KtConfig(
         else -> emptyList()
     }
 
+    private fun Property<*>.disableWhen(toggle: Property<Boolean>, value: Boolean) {
+        toggle.addCallback { revaluateDisplay(); false }
+        lockWhen { toggle.get() == value }
+    }
+
     private fun Property<*>.lockWhen(locked: () -> Boolean) {
         addDisplayCondition(Supplier { if (locked()) Property.Display.DISABLED else Property.Display.SHOWN })
         revaluateDisplay()
     }
 
-    fun profile(kind: TargetKind): CrosshairProfile = when (kind) {
-        TargetKind.NORMAL -> normal
-        TargetKind.FRIENDLY -> friendly.takeIf { it.enabled?.get() == true } ?: normal
-        TargetKind.ENEMY -> enemy.takeIf { it.enabled?.get() == true } ?: normal
+    fun profile(kind: TargetKind): CrosshairProfile? {
+        val target = when (kind) {
+            TargetKind.NORMAL -> normal
+            TargetKind.FRIENDLY -> friendly
+            TargetKind.ENEMY -> enemy
+        }
+        return target.takeIf { it.enabled.get() == true } ?: normal.takeIf { it.enabled.get() == true }
     }
 }
 
