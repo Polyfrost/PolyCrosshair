@@ -32,9 +32,34 @@ class AttackIndicator(root: Tree) {
     val color: Property<PolyColor> = root.color(
         id = "attack_indicator_color",
         title = "Color",
-        description = "The indicator's color while Vanilla Blending is off.",
+        description = "The indicator's color while Vanilla Blending and Charge Colors are off.",
         category = CATEGORY,
         def = PolyColor.rgba(255, 255, 255, 255),
+    )
+
+    private val chargeColors = root.accordion(
+        id = "attack_indicator_charge_colors",
+        title = "Charge Colors",
+        description = "Colors the indicator one way while it fills up and another once it's full.",
+        category = CATEGORY,
+    )
+    val chargeColorsEnabled: Property<Boolean> = chargeColors.second
+    val chargingColor: Property<PolyColor> = chargeColors.first.color(
+        id = "charging",
+        title = "Charging Color",
+        category = CATEGORY,
+        def = PolyColor.rgba(255, 85, 85, 255),
+    )
+    val readyColor: Property<PolyColor> = chargeColors.first.color(
+        id = "ready",
+        title = "Ready Color",
+        category = CATEGORY,
+        def = PolyColor.rgba(85, 255, 85, 255),
+    )
+    val chargeColorsWithBlending: Property<Boolean> = chargeColors.first.switch(
+        "blending", "Use With Vanilla Blending",
+        description = "Uses these colors instead of the Blending Color while Vanilla Blending is on.",
+        category = CATEGORY,
     )
 
     val offsetX: Property<Float> = root.slider(

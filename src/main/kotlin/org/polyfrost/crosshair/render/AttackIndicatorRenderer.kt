@@ -60,8 +60,21 @@ object AttackIndicatorRenderer {
         val progress = customProgress(player)
         if (progress == null && !showAttack) return
 
+        val strength = player.getAttackStrengthScale(0f)
+        val full = progress == null && fullyCharged(player, strength)
+        if (progress == null && !full && strength >= 1f) return
+        val ready = full || (progress ?: strength) >= 1f
+
         val blending = ModConfig.attackIndicator.blendingEnabled.get() == true
-        val argb = (if (blending) ModConfig.attackIndicator.blendingColor else ModConfig.attackIndicator.color).get()?.argb ?: -0x1
+        val color = with(ModConfig.attackIndicator) {
+            val charge = chargeColorsEnabled.get() == true && (!blending || chargeColorsWithBlending.get() == true)
+            when {
+                charge -> if (ready) readyColor else chargingColor
+                blending -> blendingColor
+                else -> color
+            }
+        }
+        val argb = color.get()?.argb ?: -0x1
         //? if <1.21.4 {
         /*RenderSystem.enableBlend()
         if (blending) CrosshairRenderer.invertingBlend() else RenderSystem.defaultBlendFunc()
@@ -72,15 +85,10 @@ object AttackIndicatorRenderer {
             (argb ushr 24 and 0xFF) / 255f,
         )
         *///?}
-        if (progress != null) {
-            bar(graphics, x, y, progress, blending, argb)
+        if (full) {
+            sprite(graphics, FULL, x, y, 16, 16, blending, argb)
         } else {
-            val strength = player.getAttackStrengthScale(0f)
-            if (fullyCharged(player, strength)) {
-                sprite(graphics, FULL, x, y, 16, 16, blending, argb)
-            } else if (strength < 1f) {
-                bar(graphics, x, y, strength, blending, argb)
-            }
+            bar(graphics, x, y, progress ?: strength, blending, argb)
         }
         //? if <1.21.4 {
         /*RenderSystem.setShaderColor(1f, 1f, 1f, 1f)

@@ -91,6 +91,7 @@ object ModConfig : KtConfig(
         //? if >=1.21 {
         options("attack_indicator").forEach { if (it !== attackIndicator.enabled) it.disableWhen(attackIndicator.enabled, false) }
         attackIndicator.color.disableWhen(attackIndicator.blendingEnabled, true)
+        attackIndicator.color.disableWhen(attackIndicator.chargeColorsEnabled, true)
         //?}
 
         for (accordion in root.map.values.filterIsInstance<Tree>()) {
