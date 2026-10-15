@@ -1,3 +1,2 @@
-# 2.0.3
-- Added compatibility with Lunar Client crosshair codes
-- Added "crosshair" as a config alias
+# 2.0.4
+- Added charge colors to the attack indicator
