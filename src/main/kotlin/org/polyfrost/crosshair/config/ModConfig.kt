@@ -70,6 +70,8 @@ object ModConfig : KtConfig(
     //?}
 
     init {
+        addAliases(*arrayOf("crosshair"))
+
         //? if >=1.21 {
         val profiles = listOf(normal, friendly, enemy, elytra)
         //?} else {
