@@ -53,15 +53,18 @@ object AttackIndicatorRenderer {
         val showAttack = status == AttackIndicatorStatus.CROSSHAIR &&
             ModConfig.attackIndicator.attackEnabled.get() == true && attackApplies(player.mainHandItem)
 
-        val x = graphics.guiWidth() / 2 - 8 + (ModConfig.attackIndicator.offsetX.get() ?: 0f).roundToInt()
+        val factor = scaleFactor()
+        val size = (16 * factor).roundToInt().coerceAtLeast(1)
+        val x = graphics.guiWidth() / 2 - size / 2 + (ModConfig.attackIndicator.offsetX.get() ?: 0f).roundToInt()
         val baseY = graphics.guiHeight() / 2 - 7 + 16 + (ModConfig.attackIndicator.offsetY.get() ?: 0f).roundToInt()
-        val y = CrosshairRenderer.attackIndicatorY(baseY, x)
+        val y = CrosshairRenderer.attackIndicatorY(baseY, x, size)
 
         val progress = customProgress(player)
         if (progress == null && !showAttack) return
 
         val strength = player.getAttackStrengthScale(0f)
-        val full = progress == null && fullyCharged(player, strength)
+        val alwaysReady = ModConfig.attackIndicator.attackAlwaysReady.get() == true && strength >= 1f
+        val full = progress == null && (alwaysReady || fullyCharged(player, strength))
         if (progress == null && !full && strength >= 1f) return
         val ready = full || (progress ?: strength) >= 1f
 
@@ -85,16 +88,34 @@ object AttackIndicatorRenderer {
             (argb ushr 24 and 0xFF) / 255f,
         )
         *///?}
+        val pose = graphics.pose()
+        pose.pushMatrix()
+        //? if >=1.21.6 {
+        pose.translate(x.toFloat(), y.toFloat())
+        pose.scale(factor, factor)
+        //?} else {
+        /*pose.translate(x.toFloat(), y.toFloat(), 0f)
+        pose.scale(factor, factor, 1f)
+        *///?}
         if (full) {
-            sprite(graphics, FULL, x, y, 16, 16, blending, argb)
+            sprite(graphics, FULL, 0, 0, 16, 16, blending, argb)
         } else {
-            bar(graphics, x, y, progress ?: strength, blending, argb)
+            bar(graphics, 0, 0, progress ?: strength, blending, argb)
         }
+        pose.popMatrix()
         //? if <1.21.4 {
         /*RenderSystem.setShaderColor(1f, 1f, 1f, 1f)
         RenderSystem.defaultBlendFunc()
         RenderSystem.disableBlend()
         *///?}
+    }
+
+    private fun scaleFactor(): Float = with(ModConfig.attackIndicator) {
+        if (customScaleEnabled.get() != true) return 1f
+        val scale = customScale.get() ?: return 1f
+        val current = mc.window.guiScale.toDouble()
+        if (current <= 0.0) return 1f
+        (scale / current).toFloat()
     }
 
     private fun customProgress(player: LocalPlayer): Float? = with(ModConfig.attackIndicator) {

@@ -106,9 +106,9 @@ object CrosshairRenderer {
     }
 
     @JvmOverloads
-    fun attackIndicatorY(y: Int, x: Int = indicatorGuiWidth / 2 - 8): Int {
+    fun attackIndicatorY(y: Int, x: Int = indicatorGuiWidth / 2 - 8, size: Int = 16): Int {
         val bounds = indicator ?: return y
-        val overlaps = bounds.left < x + 16 && bounds.left + bounds.size > x && bounds.top < y + 16 && bounds.top + bounds.size > y
+        val overlaps = bounds.left < x + size && bounds.left + bounds.size > x && bounds.top < y + size && bounds.top + bounds.size > y
         return if (overlaps) max(y, bounds.top + bounds.size + indicatorGap) else y
     }
 
@@ -136,19 +136,48 @@ object CrosshairRenderer {
         GlStateManager.enableAlphaTest()
         *///?}
 
-        texture.outline?.let { outline ->
-            drawLayer(graphics, outline, left, top, drawn, cells, spread, profile.outlineColor.get()?.argb ?: -0x1000000, inverted = false)
-        }
+        rotated(graphics, profile.rotation.get() ?: 0f, left + drawn / 2f, top + drawn / 2f) {
+            texture.outline?.let { outline ->
+                drawLayer(graphics, outline, left, top, drawn, cells, spread, profile.outlineColor.get()?.argb ?: -0x1000000, inverted = false)
+            }
 
-        val blending = profile.blendingEnabled.get() == true
-        val tint = if (blending) profile.blendingColor.get()?.argb ?: -0x1 else -0x1
-        drawLayer(graphics, texture.art, left, top, drawn, cells, spread, tint, inverted = blending)
+            val blending = profile.blendingEnabled.get() == true
+            val tint = if (blending) profile.blendingColor.get()?.argb ?: -0x1 else -0x1
+            drawLayer(graphics, texture.art, left, top, drawn, cells, spread, tint, inverted = blending)
 
-        healthTint(profile)?.let { color ->
-            drawLayer(graphics, texture.silhouette, left, top, drawn, cells, spread, color, inverted = false)
+            healthTint(profile)?.let { color ->
+                drawLayer(graphics, texture.silhouette, left, top, drawn, cells, spread, color, inverted = false)
+            }
         }
 
         return Bounds(left, top, drawn)
+    }
+
+    private inline fun rotated(graphics: GuiGraphicsExtractor, degrees: Float, centerX: Float, centerY: Float, block: () -> Unit) {
+        //? if >=1.21.6 {
+        val pose = graphics.pose()
+        pose.pushMatrix()
+        pose.translate(centerX, centerY)
+        pose.rotate(Math.toRadians(degrees.toDouble()).toFloat())
+        pose.translate(-centerX, -centerY)
+        block()
+        pose.popMatrix()
+        //?} else if >=1.21 {
+        /*val pose = graphics.pose()
+        pose.pushMatrix()
+        pose.translate(centerX, centerY, 0f)
+        pose.mulPose(org.joml.Quaternionf().rotateZ(Math.toRadians(degrees.toDouble()).toFloat()))
+        pose.translate(-centerX, -centerY, 0f)
+        block()
+        pose.popMatrix()
+        *///?} else {
+        /*GL11.glPushMatrix()
+        GL11.glTranslatef(centerX, centerY, 0f)
+        GL11.glRotatef(degrees, 0f, 0f, 1f)
+        GL11.glTranslatef(-centerX, -centerY, 0f)
+        block()
+        GL11.glPopMatrix()
+        *///?}
     }
 
     private fun offset(profile: CrosshairProfile): Pair<Float, Float> {

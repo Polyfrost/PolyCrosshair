@@ -78,6 +78,21 @@ class AttackIndicator(root: Tree) {
         min = -64f, max = 64f, def = 0f, step = 1f,
     )
 
+    private val scale = root.accordion(
+        id = "attack_indicator_scale",
+        title = "Use Custom Scale",
+        description = "Draws the indicator at the scale you pick here, whatever the game's GUI scale is.",
+        category = CATEGORY,
+    )
+    val customScaleEnabled: Property<Boolean> = scale.second
+    val customScale: Property<Float> = scale.first.slider(
+        id = "scale",
+        title = "Scale",
+        description = "The GUI scale to draw the indicator at. 2 matches the Normal GUI scale.",
+        category = CATEGORY,
+        min = 0.5f, max = 6f, def = 2f, step = 0.5f,
+    )
+
     private val attack = root.accordion(
         id = "attack_indicator_attack",
         title = "Attack Cooldown",
@@ -101,6 +116,11 @@ class AttackIndicator(root: Tree) {
         "other", "Other Items",
         description = "Everything else, including an empty hand.",
         category = CATEGORY, def = true,
+    )
+    val attackAlwaysReady: Property<Boolean> = attack.first.switch(
+        "always_ready", "Always Show When Ready",
+        description = "Keeps the full indicator on screen once you can attack again, on every item and whether or not you're aiming at a mob.",
+        category = CATEGORY,
     )
 
     val sleep: Property<Boolean> = root.switch(

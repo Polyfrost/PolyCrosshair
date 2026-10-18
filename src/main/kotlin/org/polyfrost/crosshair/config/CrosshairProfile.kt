@@ -115,6 +115,14 @@ class CrosshairProfile(
         def = true,
     )
 
+    val rotation: Property<Float> = root.slider(
+        id = "${key}_rotation",
+        title = "Rotation",
+        description = "Rotates the crosshair clockwise around its center.",
+        category = category,
+        min = 0f, max = 360f, def = 0f, step = 1f, unit = "°",
+    )
+
     private val outline = root.accordion(
         id = "${key}_outline",
         title = "Outline",
@@ -259,6 +267,7 @@ class CrosshairProfile(
         add("stretch", resizeStretch)
         add("image", image)
         add("circles", circles)
+        add("rotation", rotation)
         add("offset_x", offsetX)
         add("offset_y", offsetY)
         add("orbit", orbitEnabled)
