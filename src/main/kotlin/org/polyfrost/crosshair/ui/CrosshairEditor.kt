@@ -83,7 +83,9 @@ import org.polyfrost.oneconfig.api.ui.v1.components.Text
 import org.polyfrost.oneconfig.api.ui.v1.components.colorToHex
 import org.polyfrost.oneconfig.api.ui.v1.components.onClick
 import org.polyfrost.oneconfig.api.ui.v1.components.rememberInteractionSource
+import org.polyfrost.oneconfig.api.ui.v1.keybind.KeybindManager
 import org.polyfrost.oneconfig.api.ui.v1.theme.OneConfigTheme
+import java.util.function.BooleanSupplier
 import java.util.function.Predicate
 import kotlinx.coroutines.delay
 import kotlin.math.PI
@@ -187,7 +189,12 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
         }
     }
     DisposableEffect(prop) {
-        onDispose { if (CanvasHover.owner === prop) CanvasHover.owner = null }
+        val capture = BooleanSupplier { CanvasHover.owner === prop }
+        KeybindManager.addInputCapture(capture)
+        onDispose {
+            KeybindManager.removeInputCapture(capture)
+            if (CanvasHover.owner === prop) CanvasHover.owner = null
+        }
     }
 
     Column(
