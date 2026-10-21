@@ -1,4 +1,4 @@
-@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+@file:OptIn(ExperimentalOneConfigUiApi::class)
 
 package org.polyfrost.crosshair.ui
 
@@ -74,16 +74,16 @@ import org.polyfrost.crosshair.config.MirrorMode
 import org.polyfrost.crosshair.config.ModConfig
 import org.polyfrost.crosshair.config.VectorShape
 import org.polyfrost.oneconfig.api.config.v1.Property
-import org.polyfrost.oneconfig.internal.ui.components.Chip
-import org.polyfrost.oneconfig.internal.ui.components.Icon
-import org.polyfrost.oneconfig.internal.ui.components.Text
-import org.polyfrost.oneconfig.internal.ui.components.onClick
-import org.polyfrost.oneconfig.internal.ui.components.rememberInteractionSource
-import org.polyfrost.oneconfig.internal.ui.components.settings.ColorPickerModel
-import org.polyfrost.oneconfig.internal.ui.components.settings.ColorPickerPopup
-import org.polyfrost.oneconfig.internal.ui.components.settings.colorToHex
-import org.polyfrost.oneconfig.internal.ui.themes.Accent
-import org.polyfrost.oneconfig.internal.ui.themes.LocalTheme
+import org.polyfrost.oneconfig.api.ui.v1.ExperimentalOneConfigUiApi
+import org.polyfrost.oneconfig.api.ui.v1.components.Chip
+import org.polyfrost.oneconfig.api.ui.v1.components.ColorPickerModel
+import org.polyfrost.oneconfig.api.ui.v1.components.ColorPickerPopup
+import org.polyfrost.oneconfig.api.ui.v1.components.Icon
+import org.polyfrost.oneconfig.api.ui.v1.components.Text
+import org.polyfrost.oneconfig.api.ui.v1.components.colorToHex
+import org.polyfrost.oneconfig.api.ui.v1.components.onClick
+import org.polyfrost.oneconfig.api.ui.v1.components.rememberInteractionSource
+import org.polyfrost.oneconfig.api.ui.v1.theme.OneConfigTheme
 import java.util.function.Predicate
 import kotlinx.coroutines.delay
 import kotlin.math.PI
@@ -109,7 +109,7 @@ private const val DISABLED_ALPHA = 0.65f
 
 @Composable
 fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
-    val theme = LocalTheme.current
+    val theme = OneConfigTheme.current
 
     var reloads by remember(prop) { mutableIntStateOf(0) }
     val writing = remember(prop) { booleanArrayOf(false) }
@@ -325,7 +325,7 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
             ) {
                 val light = theme.chipBackground
                 val dark = theme.componentBackground
-                val guideColor = Accent.copy(alpha = 0.35f)
+                val guideColor = OneConfigTheme.accent.copy(alpha = 0.35f)
                 val gridColor = theme.borderColor.copy(alpha = 0.25f)
 
                 Canvas(Modifier.size(CANVAS_SIZE)) {
@@ -397,13 +397,13 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
                     Modifier
                         .size(20.dp)
                         .clip(CircleShape)
-                        .background(if (helpOpen) Accent else theme.popupBackground, CircleShape)
+                        .background(if (helpOpen) OneConfigTheme.accent else theme.popupBackground, CircleShape)
                         .border(1.dp, theme.borderColor, CircleShape)
                         .pointerHoverIcon(PointerIcon.Hand)
                         .onClick(rememberInteractionSource()) { helpOpen = !helpOpen },
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text("i", color = if (helpOpen) theme.accentTextColor else theme.textColor, fontSize = 12.sp)
+                    Text("i", modifier = Modifier, color = if (helpOpen) theme.accentTextColor else theme.textColor, fontSize = 12.sp)
                 }
             }
 
@@ -411,7 +411,7 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
                 val perRow = ((maxWidth + FAVORITE_GAP) / (FAVORITE_SIZE + FAVORITE_GAP)).toInt().coerceAtLeast(1)
                 Column(verticalArrangement = Arrangement.spacedBy(FAVORITE_GAP)) {
                     if (favorites.isEmpty()) {
-                        Text("Saved crosshairs show up here.", color = theme.textColorSecondary, fontSize = 12.sp)
+                        Text("Saved crosshairs show up here.", modifier = Modifier, color = theme.textColorSecondary, fontSize = 12.sp)
                     }
                     favorites.chunked(perRow).forEach { row ->
                         Row(horizontalArrangement = Arrangement.spacedBy(FAVORITE_GAP)) {
@@ -431,13 +431,13 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Tool", color = theme.textColorSecondary, fontSize = 12.sp)
+            Text("Tool", modifier = Modifier, color = theme.textColorSecondary, fontSize = 12.sp)
             Tool.entries.forEach { entry ->
                 Chip(entry.label, selected = tool == entry) { tool = entry }
             }
             if (tool != Tool.PEN) {
                 Spacer(Modifier.width(12.dp))
-                Text("Thickness", color = theme.textColorSecondary, fontSize = 12.sp)
+                Text("Thickness", modifier = Modifier, color = theme.textColorSecondary, fontSize = 12.sp)
                 SHAPE_THICKNESSES.forEach { value ->
                     val label = if (value % 1f == 0f) value.toInt().toString() else value.toString()
                     Chip(label, selected = thickness == value) { thickness = value }
@@ -446,7 +446,7 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Mirror", color = theme.textColorSecondary, fontSize = 12.sp)
+            Text("Mirror", modifier = Modifier, color = theme.textColorSecondary, fontSize = 12.sp)
             MirrorMode.entries.forEach { mode ->
                 Chip(mode.label, selected = mirror == mode) { mirror = mode }
             }
@@ -467,7 +467,7 @@ private fun <T> Property<T>.observe(): T? {
 
 @Composable
 private fun Favorite(entry: String, onLoad: () -> Unit, onRemove: () -> Unit) {
-    val theme = LocalTheme.current
+    val theme = OneConfigTheme.current
     val parts = remember(entry) { splitFavorite(entry) }
     val pixels = remember(entry) { CrosshairPixels.fromBase64(parts.first) } ?: return
     val circles = remember(entry) { CrosshairCircles.decode(parts.second) }
@@ -478,7 +478,7 @@ private fun Favorite(entry: String, onLoad: () -> Unit, onRemove: () -> Unit) {
             .size(FAVORITE_SIZE)
             .clip(theme.backgroundShape)
             .background(theme.componentBackground, theme.backgroundShape)
-            .border(1.dp, if (hovered) Accent else theme.borderColor, theme.backgroundShape)
+            .border(1.dp, if (hovered) OneConfigTheme.accent else theme.borderColor, theme.backgroundShape)
             .pointerHoverIcon(PointerIcon.Hand)
             .onClick(interaction) { onLoad() }
     ) {
@@ -507,7 +507,7 @@ private fun Favorite(entry: String, onLoad: () -> Unit, onRemove: () -> Unit) {
 
 @Composable
 private fun ShortcutOverlay(modifier: Modifier = Modifier) {
-    val theme = LocalTheme.current
+    val theme = OneConfigTheme.current
     Column(
         modifier
             .clip(theme.popupShape)
@@ -518,8 +518,8 @@ private fun ShortcutOverlay(modifier: Modifier = Modifier) {
     ) {
         SHORTCUTS.forEach { (keys, what) ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(keys, color = theme.textColor, fontSize = 12.sp)
-                Text(what, color = theme.textColorSecondary, fontSize = 12.sp)
+                Text(keys, modifier = Modifier, color = theme.textColor, fontSize = 12.sp)
+                Text(what, modifier = Modifier, color = theme.textColorSecondary, fontSize = 12.sp)
             }
         }
     }
@@ -577,7 +577,7 @@ private fun DrawScope.drawShapes(shapes: List<VectorShape>, cell: Float) {
 // OneConfig's ColorOption wraps its content and takes no modifier, so this rebuilds it at full width around the same picker popup.
 @Composable
 private fun PenColor() {
-    val theme = LocalTheme.current
+    val theme = OneConfigTheme.current
     val color = Color(ModConfig.penColor.observe() ?: -0x1)
     val model = remember { ColorPickerModel(color, true) }
     var expanded by remember { mutableStateOf(false) }
@@ -595,7 +595,7 @@ private fun PenColor() {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon("paintbrush", color = content, modifier = Modifier.size(14.dp))
-            Text("#${colorToHex(color)}", color = content, fontSize = 13.sp)
+            Text("#${colorToHex(color)}", modifier = Modifier, color = content, fontSize = 13.sp)
         }
         if (expanded) {
             Popup(
@@ -614,10 +614,10 @@ private const val PICKER_OFFSET = 44
 
 @Composable
 private fun EditorButton(text: String, modifier: Modifier = Modifier, enabled: Boolean = true, onClick: () -> Unit) {
-    val theme = LocalTheme.current
+    val theme = OneConfigTheme.current
     val interactionSource = rememberInteractionSource()
     val isHovered by interactionSource.collectIsHoveredAsState()
-    val bgColor by animateColorAsState(if (isHovered && enabled) Accent.copy(alpha = 0.75f) else Accent)
+    val bgColor by animateColorAsState(if (isHovered && enabled) OneConfigTheme.accent.copy(alpha = 0.75f) else OneConfigTheme.accent)
     Box(
         modifier
             .fillMaxWidth()
@@ -628,6 +628,6 @@ private fun EditorButton(text: String, modifier: Modifier = Modifier, enabled: B
             .padding(horizontal = 16.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, color = theme.accentTextColor, fontSize = 13.sp)
+        Text(text, modifier = Modifier, color = theme.accentTextColor, fontSize = 13.sp)
     }
 }
