@@ -120,61 +120,65 @@ object CrosshairRenderer {
         val texels = ceil(guiScale() * factor).toInt().coerceIn(1, MAX_TEXELS_PER_CELL)
         val texture = CrosshairTextures.get(profile, texels) ?: return null
 
-        val drawn = (cells * factor).roundToInt().coerceAtLeast(1)
-        val spread = spread(profile, factor)
+        val spread = spread(profile)
 
-        val perCell = drawn.toFloat() / cells
         val (offsetX, offsetY) = offset(profile)
-        val shiftX = (offsetX * perCell).roundToInt()
-        val shiftY = (offsetY * perCell).roundToInt()
         //? if >=1.21 {
-        val left = (graphics.guiWidth() - drawn) / 2 + shiftX
-        val top = (graphics.guiHeight() - drawn) / 2 + shiftY
+        val cellX = floor((graphics.guiWidth() / factor - cells) / 2f)
+        val cellY = floor((graphics.guiHeight() / factor - cells) / 2f)
         //?} else {
-        /*val left = graphics.width / 2 - drawn / 2 + shiftX
-        val top = graphics.height / 2 - drawn / 2 + shiftY
+        /*val cellX = floor(graphics.width / factor / 2f) - cells / 2
+        val cellY = floor(graphics.height / factor / 2f) - cells / 2
         GlStateManager.enableAlphaTest()
         *///?}
+        val left = (cellX + offsetX.roundToInt()) * factor
+        val top = (cellY + offsetY.roundToInt()) * factor
 
-        rotated(graphics, profile.rotation.get() ?: 0f, left + drawn / 2f, top + drawn / 2f) {
+        transformed(graphics, left, top, factor, profile.rotation.get() ?: 0f, cells / 2f) {
             texture.outline?.let { outline ->
-                drawLayer(graphics, outline, left, top, drawn, cells, spread, profile.outlineColor.get()?.argb ?: -0x1000000, inverted = false)
+                drawLayer(graphics, outline, cells, spread, profile.outlineColor.get()?.argb ?: -0x1000000, inverted = false)
             }
 
             val blending = profile.blendingEnabled.get() == true
             val tint = if (blending) profile.blendingColor.get()?.argb ?: -0x1 else -0x1
-            drawLayer(graphics, texture.art, left, top, drawn, cells, spread, tint, inverted = blending)
+            drawLayer(graphics, texture.art, cells, spread, tint, inverted = blending)
 
             healthTint(profile)?.let { color ->
-                drawLayer(graphics, texture.silhouette, left, top, drawn, cells, spread, color, inverted = false)
+                drawLayer(graphics, texture.silhouette, cells, spread, color, inverted = false)
             }
         }
 
-        return Bounds(left, top, drawn)
+        return Bounds(floor(left).toInt(), floor(top).toInt(), ceil(cells * factor).toInt())
     }
 
-    private inline fun rotated(graphics: GuiGraphicsExtractor, degrees: Float, centerX: Float, centerY: Float, block: () -> Unit) {
+    private inline fun transformed(graphics: GuiGraphicsExtractor, left: Float, top: Float, factor: Float, degrees: Float, pivot: Float, block: () -> Unit) {
         //? if >=1.21.6 {
         val pose = graphics.pose()
         pose.pushMatrix()
-        pose.translate(centerX, centerY)
+        pose.translate(left, top)
+        pose.scale(factor, factor)
+        pose.translate(pivot, pivot)
         pose.rotate(Math.toRadians(degrees.toDouble()).toFloat())
-        pose.translate(-centerX, -centerY)
+        pose.translate(-pivot, -pivot)
         block()
         pose.popMatrix()
         //?} else if >=1.21 {
         /*val pose = graphics.pose()
         pose.pushMatrix()
-        pose.translate(centerX, centerY, 0f)
+        pose.translate(left, top, 0f)
+        pose.scale(factor, factor, 1f)
+        pose.translate(pivot, pivot, 0f)
         pose.mulPose(org.joml.Quaternionf().rotateZ(Math.toRadians(degrees.toDouble()).toFloat()))
-        pose.translate(-centerX, -centerY, 0f)
+        pose.translate(-pivot, -pivot, 0f)
         block()
         pose.popMatrix()
         *///?} else {
         /*GL11.glPushMatrix()
-        GL11.glTranslatef(centerX, centerY, 0f)
+        GL11.glTranslatef(left, top, 0f)
+        GL11.glScalef(factor, factor, 1f)
+        GL11.glTranslatef(pivot, pivot, 0f)
         GL11.glRotatef(degrees, 0f, 0f, 1f)
-        GL11.glTranslatef(-centerX, -centerY, 0f)
+        GL11.glTranslatef(-pivot, -pivot, 0f)
         block()
         GL11.glPopMatrix()
         *///?}
@@ -295,7 +299,7 @@ object CrosshairRenderer {
         return (scale / current).toFloat()
     }
 
-    private fun spread(profile: CrosshairProfile, factor: Float): Int {
+    private fun spread(profile: CrosshairProfile): Int {
         val player = mc.player ?: return 0
         var spread = 0f
 
@@ -322,7 +326,7 @@ object CrosshairRenderer {
         }
         //?}
 
-        return (spread * factor).roundToInt()
+        return spread.roundToInt()
     }
 
     private fun healthTint(profile: CrosshairProfile): Int? {
@@ -336,32 +340,27 @@ object CrosshairRenderer {
     private fun drawLayer(
         graphics: GuiGraphicsExtractor,
         layer: CrosshairTexture.Layer,
-        left: Int,
-        top: Int,
-        drawn: Int,
         cells: Int,
         spread: Int,
         argb: Int,
         inverted: Boolean,
     ) {
         if (spread <= 0) {
-            blit(graphics, layer.location, left, top, drawn, drawn, 0f, 0f, layer.width, layer.height, layer.width, layer.height, argb, inverted)
+            blit(graphics, layer.location, 0, 0, cells, cells, 0f, 0f, layer.width, layer.height, layer.width, layer.height, argb, inverted)
             return
         }
 
         val span = (cells + 1) / 2
         val texels = layer.width / cells
-        val pixels = drawn.toFloat() / cells
-        val size = (span * pixels).roundToInt()
 
         for (qy in 0..1) {
             for (qx in 0..1) {
                 val cx = qx * (cells - span)
                 val cy = qy * (cells - span)
-                val dx = left + (cx * pixels).roundToInt() + if (qx == 0) -spread else spread
-                val dy = top + (cy * pixels).roundToInt() + if (qy == 0) -spread else spread
+                val dx = cx + if (qx == 0) -spread else spread
+                val dy = cy + if (qy == 0) -spread else spread
                 blit(
-                    graphics, layer.location, dx, dy, size, size,
+                    graphics, layer.location, dx, dy, span, span,
                     (cx * texels).toFloat(), (cy * texels).toFloat(), span * texels, span * texels,
                     layer.width, layer.height, argb, inverted,
                 )
