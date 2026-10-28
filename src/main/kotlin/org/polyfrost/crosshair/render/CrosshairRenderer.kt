@@ -120,35 +120,57 @@ object CrosshairRenderer {
         val texels = ceil(guiScale() * factor).toInt().coerceIn(1, MAX_TEXELS_PER_CELL)
         val texture = CrosshairTextures.get(profile, texels) ?: return null
 
-        val spread = spread(profile)
-
         val (offsetX, offsetY) = offset(profile)
-        //? if >=1.21 {
-        val cellX = floor((graphics.guiWidth() / factor - cells) / 2f)
-        val cellY = floor((graphics.guiHeight() / factor - cells) / 2f)
-        //?} else {
-        /*val cellX = floor(graphics.width / factor / 2f) - cells / 2
-        val cellY = floor(graphics.height / factor / 2f) - cells / 2
-        GlStateManager.enableAlphaTest()
+        //? if <1.21 {
+        /*GlStateManager.enableAlphaTest()
         *///?}
-        val left = (cellX + offsetX.roundToInt()) * factor
-        val top = (cellY + offsetY.roundToInt()) * factor
 
-        transformed(graphics, left, top, factor, profile.rotation.get() ?: 0f, cells / 2f) {
+        val smooth = profile.smoothScale.get() == true
+        val scale = if (smooth) factor else 1f
+        val drawn: Int
+        val left: Float
+        val top: Float
+        if (smooth) {
+            drawn = cells
+            //? if >=1.21 {
+            val cellX = floor((graphics.guiWidth() / factor - cells) / 2f)
+            val cellY = floor((graphics.guiHeight() / factor - cells) / 2f)
+            //?} else {
+            /*val cellX = floor(graphics.width / factor / 2f) - cells / 2
+            val cellY = floor(graphics.height / factor / 2f) - cells / 2
+            *///?}
+            left = (cellX + offsetX.roundToInt()) * factor
+            top = (cellY + offsetY.roundToInt()) * factor
+        } else {
+            drawn = (cells * factor).roundToInt().coerceAtLeast(1)
+            val perCell = drawn.toFloat() / cells
+            val shiftX = (offsetX * perCell).roundToInt()
+            val shiftY = (offsetY * perCell).roundToInt()
+            //? if >=1.21 {
+            left = ((graphics.guiWidth() - drawn) / 2 + shiftX).toFloat()
+            top = ((graphics.guiHeight() - drawn) / 2 + shiftY).toFloat()
+            //?} else {
+            /*left = (graphics.width / 2 - drawn / 2 + shiftX).toFloat()
+            top = (graphics.height / 2 - drawn / 2 + shiftY).toFloat()
+            *///?}
+        }
+        val spread = spread(profile, factor / scale)
+
+        transformed(graphics, left, top, scale, profile.rotation.get() ?: 0f, drawn / 2f) {
             texture.outline?.let { outline ->
-                drawLayer(graphics, outline, cells, spread, profile.outlineColor.get()?.argb ?: -0x1000000, inverted = false)
+                drawLayer(graphics, outline, drawn, cells, spread, profile.outlineColor.get()?.argb ?: -0x1000000, inverted = false)
             }
 
             val blending = profile.blendingEnabled.get() == true
             val tint = if (blending) profile.blendingColor.get()?.argb ?: -0x1 else -0x1
-            drawLayer(graphics, texture.art, cells, spread, tint, inverted = blending)
+            drawLayer(graphics, texture.art, drawn, cells, spread, tint, inverted = blending)
 
             healthTint(profile)?.let { color ->
-                drawLayer(graphics, texture.silhouette, cells, spread, color, inverted = false)
+                drawLayer(graphics, texture.silhouette, drawn, cells, spread, color, inverted = false)
             }
         }
 
-        return Bounds(floor(left).toInt(), floor(top).toInt(), ceil(cells * factor).toInt())
+        return Bounds(floor(left).toInt(), floor(top).toInt(), ceil(drawn * scale).toInt())
     }
 
     private inline fun transformed(graphics: GuiGraphicsExtractor, left: Float, top: Float, factor: Float, degrees: Float, pivot: Float, block: () -> Unit) {
@@ -299,7 +321,7 @@ object CrosshairRenderer {
         return (scale / current).toFloat()
     }
 
-    private fun spread(profile: CrosshairProfile): Int {
+    private fun spread(profile: CrosshairProfile, factor: Float): Int {
         val player = mc.player ?: return 0
         var spread = 0f
 
@@ -326,7 +348,7 @@ object CrosshairRenderer {
         }
         //?}
 
-        return spread.roundToInt()
+        return (spread * factor).roundToInt()
     }
 
     private fun healthTint(profile: CrosshairProfile): Int? {
@@ -340,27 +362,30 @@ object CrosshairRenderer {
     private fun drawLayer(
         graphics: GuiGraphicsExtractor,
         layer: CrosshairTexture.Layer,
+        drawn: Int,
         cells: Int,
         spread: Int,
         argb: Int,
         inverted: Boolean,
     ) {
         if (spread <= 0) {
-            blit(graphics, layer.location, 0, 0, cells, cells, 0f, 0f, layer.width, layer.height, layer.width, layer.height, argb, inverted)
+            blit(graphics, layer.location, 0, 0, drawn, drawn, 0f, 0f, layer.width, layer.height, layer.width, layer.height, argb, inverted)
             return
         }
 
         val span = (cells + 1) / 2
         val texels = layer.width / cells
+        val pixels = drawn.toFloat() / cells
+        val size = (span * pixels).roundToInt()
 
         for (qy in 0..1) {
             for (qx in 0..1) {
                 val cx = qx * (cells - span)
                 val cy = qy * (cells - span)
-                val dx = cx + if (qx == 0) -spread else spread
-                val dy = cy + if (qy == 0) -spread else spread
+                val dx = (cx * pixels).roundToInt() + if (qx == 0) -spread else spread
+                val dy = (cy * pixels).roundToInt() + if (qy == 0) -spread else spread
                 blit(
-                    graphics, layer.location, dx, dy, span, span,
+                    graphics, layer.location, dx, dy, size, size,
                     (cx * texels).toFloat(), (cy * texels).toFloat(), span * texels, span * texels,
                     layer.width, layer.height, argb, inverted,
                 )

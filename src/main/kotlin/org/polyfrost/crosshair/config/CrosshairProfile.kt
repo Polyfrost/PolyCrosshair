@@ -58,6 +58,14 @@ class CrosshairProfile(
 
     val circles: Property<String> = root.hidden("${key}_circles", "", String::class.java)
 
+    val rotation: Property<Float> = root.slider(
+        id = "${key}_rotation",
+        title = "Rotation",
+        description = "Rotates the crosshair clockwise around its center.",
+        category = category,
+        min = 0f, max = 360f, def = 0f, step = 1f, unit = "°",
+    )
+
     val offsetX: Property<Float>? = if (indicator) root.slider(
         id = "${key}_offset_x",
         title = "Offset X",
@@ -113,14 +121,6 @@ class CrosshairProfile(
         description = "Stretches the crosshair to fill the new canvas when the grid size changes. Turn this off to keep its size and re-center it.",
         category = category,
         def = true,
-    )
-
-    val rotation: Property<Float> = root.slider(
-        id = "${key}_rotation",
-        title = "Rotation",
-        description = "Rotates the crosshair clockwise around its center.",
-        category = category,
-        min = 0f, max = 360f, def = 0f, step = 1f, unit = "°",
     )
 
     private val outline = root.accordion(
@@ -226,6 +226,13 @@ class CrosshairProfile(
         category = category,
         min = 0.5f, max = 6f, def = 2f, step = 0.5f,
     )
+    val smoothScale: Property<Boolean> = scale.first.switch(
+        id = "smooth",
+        title = "Smooth Scaling",
+        description = "Draws the crosshair at exactly the scale you pick. Turn this off to round its size to whole GUI pixels.",
+        category = category,
+        def = false,
+    )
 
     val showInThirdPerson: Property<Boolean> = root.switch(
         id = "${key}_third_person",
@@ -289,6 +296,7 @@ class CrosshairProfile(
         //?}
         add("scale", customScaleEnabled)
         add("scale_value", customScale)
+        add("scale_smooth", smoothScale)
         add("third_person", showInThirdPerson)
         add("spectator", visibleInSpectator)
     }
