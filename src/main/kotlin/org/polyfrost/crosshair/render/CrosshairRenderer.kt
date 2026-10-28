@@ -25,6 +25,9 @@ import net.minecraft.resources.Identifier as ResourceLocation
 //? if >=1.21.6 {
 import net.minecraft.client.renderer.RenderPipelines
 //?}
+//? if >=1.21 && <1.21.4 {
+/*import com.mojang.blaze3d.platform.GlStateManager
+*///?}
 //? if >=1.21.11 {
 import net.minecraft.client.renderer.rendertype.RenderType
 //?} else if >=1.21.4 {
@@ -35,6 +38,8 @@ import org.polyfrost.crosshair.config.CrosshairProfile
 import org.polyfrost.crosshair.config.ModConfig
 import org.polyfrost.oneconfig.api.config.v1.Property
 import org.polyfrost.oneconfig.api.hud.v1.HudManager
+//? if >=1.21 && <1.21.6
+/*import org.joml.Quaternionf*/
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.cos
@@ -190,7 +195,7 @@ object CrosshairRenderer {
         pose.translate(left, top, 0f)
         pose.scale(factor, factor, 1f)
         pose.translate(pivot, pivot, 0f)
-        pose.mulPose(org.joml.Quaternionf().rotateZ(Math.toRadians(degrees.toDouble()).toFloat()))
+        pose.mulPose(Quaternionf().rotateZ(Math.toRadians(degrees.toDouble()).toFloat()))
         pose.translate(-pivot, -pivot, 0f)
         block()
         pose.popMatrix()
@@ -396,10 +401,10 @@ object CrosshairRenderer {
     //? if >=1.21 && <1.21.4 {
     /*internal fun invertingBlend() {
         RenderSystem.blendFuncSeparate(
-            com.mojang.blaze3d.platform.GlStateManager.SourceFactor.ONE_MINUS_DST_COLOR,
-            com.mojang.blaze3d.platform.GlStateManager.DestFactor.ONE_MINUS_SRC_COLOR,
-            com.mojang.blaze3d.platform.GlStateManager.SourceFactor.ONE,
-            com.mojang.blaze3d.platform.GlStateManager.DestFactor.ZERO,
+            GlStateManager.SourceFactor.ONE_MINUS_DST_COLOR,
+            GlStateManager.DestFactor.ONE_MINUS_SRC_COLOR,
+            GlStateManager.SourceFactor.ONE,
+            GlStateManager.DestFactor.ZERO,
         )
     }
     *///?}
