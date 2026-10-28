@@ -6,6 +6,7 @@ mod.description = "Draw and use your own custom crosshair."
 
 deps.fabric_loader = "0.19.3"
 deps.oneconfig = "1.5.0"
+deps.errorprone = "2.51.0"
 
 loomx.loom_version = "1.17-SNAPSHOT"
 
