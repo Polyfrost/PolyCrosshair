@@ -1,2 +1,3 @@
-# 2.0.6
-- Fix custom-scale crosshairs from snapping to whole GUI units
+# 2.0.7
+- Added Smooth Scaling option
+- Moved the Rotation option under the editor
