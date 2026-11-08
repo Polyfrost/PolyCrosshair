@@ -1,3 +1,2 @@
-# 2.0.8
-- Properly center custom crosshairs
-- Added various debug crosshair customizations
+# 2.0.9
+- Mirror debug crosshair when it should be
