@@ -42,18 +42,22 @@ object DebugCrosshairRenderer {
         if (!visible()) return
         //? if >=1.21 {
         val camera = mc.cameraEntity ?: return
-        val yaw = Math.toRadians(camera.getViewYRot(partialTick).toDouble())
-        val pitch = Math.toRadians(camera.getViewXRot(partialTick).toDouble())
+        var yaw = Math.toRadians(camera.getViewYRot(partialTick).toDouble())
+        var pitch = Math.toRadians(camera.getViewXRot(partialTick).toDouble())
         val windowWidth = mc.window.width
         val windowHeight = mc.window.height
         //?} else {
         /*if (mc.options.hideGui) return
         val camera = mc.camera ?: return
-        val yaw = Math.toRadians((camera.lastYaw + (camera.yaw - camera.lastYaw) * partialTick).toDouble())
-        val pitch = Math.toRadians((camera.lastPitch + (camera.pitch - camera.lastPitch) * partialTick).toDouble())
+        var yaw = Math.toRadians((camera.lastYaw + (camera.yaw - camera.lastYaw) * partialTick).toDouble())
+        var pitch = Math.toRadians((camera.lastPitch + (camera.pitch - camera.lastPitch) * partialTick).toDouble())
         val windowWidth = mc.width
         val windowHeight = mc.height
         *///?}
+        if (mirrored()) {
+            yaw += Math.PI
+            pitch = -pitch
+        }
 
         val sinYaw = sin(yaw).toFloat()
         val cosYaw = cos(yaw).toFloat()
@@ -116,6 +120,13 @@ object DebugCrosshairRenderer {
             *///?}
         }
     }
+
+    private fun mirrored(): Boolean =
+        //? if >=1.21 {
+        mc.options.cameraType.isMirrored
+        //?} else {
+        /*mc.options.perspective == 2
+        *///?}
 
     private fun visible(): Boolean {
         if (!customized()) return false
