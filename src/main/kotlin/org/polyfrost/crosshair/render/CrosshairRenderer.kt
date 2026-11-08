@@ -70,6 +70,7 @@ object CrosshairRenderer {
     fun render(graphics: GuiGraphicsExtractor, vanillaVisible: Boolean): Boolean {
         indicator = null
         if (Compat.forcedOff) return false
+        if (DebugCrosshairRenderer.hidesCrosshair()) return true
         val profile = if (ModConfig.enabled) {
             //? if >=1.21 {
             val elytra = ModConfig.elytra
@@ -137,27 +138,15 @@ object CrosshairRenderer {
         val top: Float
         if (smooth) {
             drawn = cells
-            //? if >=1.21 {
-            val cellX = floor((graphics.guiWidth() / factor - cells) / 2f)
-            val cellY = floor((graphics.guiHeight() / factor - cells) / 2f)
-            //?} else {
-            /*val cellX = floor(graphics.width / factor / 2f) - cells / 2
-            val cellY = floor(graphics.height / factor / 2f) - cells / 2
-            *///?}
-            left = (cellX + offsetX.roundToInt()) * factor
-            top = (cellY + offsetY.roundToInt()) * factor
+            left = centeredX(cells * factor) + offsetX.roundToInt() * factor
+            top = centeredY(cells * factor) + offsetY.roundToInt() * factor
         } else {
             drawn = (cells * factor).roundToInt().coerceAtLeast(1)
             val perCell = drawn.toFloat() / cells
             val shiftX = (offsetX * perCell).roundToInt()
             val shiftY = (offsetY * perCell).roundToInt()
-            //? if >=1.21 {
-            left = ((graphics.guiWidth() - drawn) / 2 + shiftX).toFloat()
-            top = ((graphics.guiHeight() - drawn) / 2 + shiftY).toFloat()
-            //?} else {
-            /*left = (graphics.width / 2 - drawn / 2 + shiftX).toFloat()
-            top = (graphics.height / 2 - drawn / 2 + shiftY).toFloat()
-            *///?}
+            left = centeredX(drawn.toFloat()) + shiftX
+            top = centeredY(drawn.toFloat()) + shiftY
         }
         val spread = spread(profile, factor / scale)
 
@@ -178,7 +167,7 @@ object CrosshairRenderer {
         return Bounds(floor(left).toInt(), floor(top).toInt(), ceil(drawn * scale).toInt())
     }
 
-    private inline fun transformed(graphics: GuiGraphicsExtractor, left: Float, top: Float, factor: Float, degrees: Float, pivot: Float, block: () -> Unit) {
+    internal inline fun transformed(graphics: GuiGraphicsExtractor, left: Float, top: Float, factor: Float, degrees: Float, pivot: Float, block: () -> Unit) {
         //? if >=1.21.6 {
         val pose = graphics.pose()
         pose.pushMatrix()
@@ -232,23 +221,18 @@ object CrosshairRenderer {
         //? if >=1.21 {
         val guiWidth = graphics.guiWidth()
         val guiHeight = graphics.guiHeight()
-        val screenWidth = mc.window.width
-        val screenHeight = mc.window.height
         val vanillaLeft = (guiWidth - VANILLA_ART) / 2
         val vanillaTop = (guiHeight - VANILLA_ART) / 2
         //?} else {
-        /*val screenWidth = mc.width
-        val screenHeight = mc.height
-        val vanillaLeft = graphics.width / 2 - 7
+        /*val vanillaLeft = graphics.width / 2 - 7
         val vanillaTop = graphics.height / 2 - 7
         *///?}
 
         val left: Float
         val top: Float
         if (options.fixCentering.get() == true) {
-            val art = VANILLA_ART * texelSize
-            left = (floor((screenWidth - art) / 2) / guiScale).toFloat()
-            top = (floor((screenHeight - art) / 2) / guiScale).toFloat()
+            left = centeredX(VANILLA_ART * factor)
+            top = centeredY(VANILLA_ART * factor)
         } else {
             val shift = VANILLA_ART / 2f * (1f - factor)
             left = vanillaLeft + shift
@@ -298,20 +282,42 @@ object CrosshairRenderer {
         return true
     }
 
-    private fun visible(showInThirdPerson: Property<Boolean>, visibleInSpectator: Property<Boolean>, vanillaVisible: Boolean): Boolean {
+    private fun centeredX(size: Float): Float =
         //? if >=1.21 {
-        val firstPerson = mc.options.cameraType.isFirstPerson
+        centered(mc.window.width, size)
         //?} else {
-        /*val firstPerson = mc.options.perspective == 0
+        /*centered(mc.width, size)
         *///?}
+
+    private fun centeredY(size: Float): Float =
+        //? if >=1.21 {
+        centered(mc.window.height, size)
+        //?} else {
+        /*centered(mc.height, size)
+        *///?}
+
+    private fun centered(screenPixels: Int, size: Float): Float {
+        val guiScale = guiScale()
+        return (floor((screenPixels - size * guiScale) / 2) / guiScale).toFloat()
+    }
+
+    internal fun firstPerson(): Boolean =
+        //? if >=1.21 {
+        mc.options.cameraType.isFirstPerson
+        //?} else {
+        /*mc.options.perspective == 0
+        *///?}
+
+    private fun visible(showInThirdPerson: Property<Boolean>, visibleInSpectator: Property<Boolean>, vanillaVisible: Boolean): Boolean {
+        val firstPerson = firstPerson()
         if (!firstPerson && showInThirdPerson.get() != true) return false
         if (vanillaVisible) return true
-        if (HudManager.isDebugScreenVisible) return false
+        if (HudManager.isDebugScreenVisible && !DebugCrosshairRenderer.customized()) return false
         if (mc.player?.isSpectator == true) return visibleInSpectator.get() == true
         return !firstPerson
     }
 
-    private fun guiScale(): Double =
+    internal fun guiScale(): Double =
         //? if >=1.21 {
         mc.window.guiScale.toDouble()
         //?} else {

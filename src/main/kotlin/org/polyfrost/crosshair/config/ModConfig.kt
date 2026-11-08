@@ -52,6 +52,8 @@ object ModConfig : KtConfig(
     val attackIndicator = AttackIndicator(root)
     //?}
 
+    val debugCrosshair = DebugCrosshair(root)
+
     val penColor: Property<Int> = root.hidden("pen_color", -0x1, Int::class.java)
 
     val favorites: Property<String> = root.hidden("favorites", "", String::class.java)
@@ -93,6 +95,11 @@ object ModConfig : KtConfig(
         attackIndicator.color.disableWhen(attackIndicator.blendingEnabled, true)
         attackIndicator.color.disableWhen(attackIndicator.chargeColorsEnabled, true)
         //?}
+
+        options("debug_crosshair").forEach { if (it !== debugCrosshair.enabled) it.disableWhen(debugCrosshair.enabled, false) }
+        for (axis in listOf(debugCrosshair.xAxis, debugCrosshair.yAxis, debugCrosshair.zAxis)) {
+            axis.outlineColor.disableWhen(axis.outline, false)
+        }
 
         for (accordion in root.map.values.filterIsInstance<Tree>()) {
             @Suppress("UNCHECKED_CAST")

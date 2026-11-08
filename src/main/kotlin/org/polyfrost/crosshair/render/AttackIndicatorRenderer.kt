@@ -43,10 +43,12 @@ object AttackIndicatorRenderer {
 
     private val mc: Minecraft get() = Minecraft.getInstance()
 
-    fun replacesVanilla(): Boolean = !Compat.forcedOff && ModConfig.attackIndicator.enabled.get() == true
+    fun replacesVanilla(): Boolean = customized() || DebugCrosshairRenderer.hidesCrosshair()
+
+    private fun customized(): Boolean = !Compat.forcedOff && ModConfig.attackIndicator.enabled.get() == true
 
     fun render(graphics: GuiGraphicsExtractor) {
-        if (!replacesVanilla()) return
+        if (!customized() || DebugCrosshairRenderer.hidesCrosshair()) return
         val player = mc.player ?: return
         val status = mc.options.attackIndicator().get()
         if (status == AttackIndicatorStatus.OFF) return

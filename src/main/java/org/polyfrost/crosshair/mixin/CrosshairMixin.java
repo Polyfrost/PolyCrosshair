@@ -1,7 +1,10 @@
 package org.polyfrost.crosshair.mixin;
 
 //? if >=1.21 {
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.v2.WrapWithCondition;
+import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 //? if >=26.2 {
@@ -21,12 +24,11 @@ import net.minecraft.resources.Identifier;
 *///?}
 import org.polyfrost.crosshair.render.AttackIndicatorRenderer;
 import org.polyfrost.crosshair.render.CrosshairRenderer;
+import org.polyfrost.crosshair.render.DebugCrosshairRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(
     //? if >=26.2 {
@@ -80,6 +82,18 @@ public abstract class CrosshairMixin {
 
     @Unique
     private boolean polycrosshair$spriteReached;
+
+    //? if >=1.21.11 {
+    @ModifyExpressionValue(method = CROSSHAIR_METHOD, at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/components/debug/DebugScreenEntryList;isCurrentlyEnabled(Lnet/minecraft/resources/Identifier;)Z"))
+    private boolean polycrosshair$keepSpriteBranch(boolean debug) {
+        return debug && !DebugCrosshairRenderer.INSTANCE.customized();
+    }
+    //?} else if >=1.21.10 {
+    /*@ModifyExpressionValue(method = CROSSHAIR_METHOD, at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/components/debug/DebugScreenEntryList;isCurrentlyEnabled(Lnet/minecraft/resources/ResourceLocation;)Z"))
+    private boolean polycrosshair$keepSpriteBranch(boolean debug) {
+        return debug && !DebugCrosshairRenderer.INSTANCE.customized();
+    }
+    *///?}
 
     @WrapWithCondition(
         method =
@@ -168,26 +182,23 @@ public abstract class CrosshairMixin {
         return CrosshairRenderer.INSTANCE.attackIndicatorY(y);
     }
 
-    @Inject(
-        method =
-        //? if >=26 {
-        "extractCrosshair"
-        //?} else {
-        /*"renderCrosshair"
-        *///?}
-        , at = @At("RETURN"))
-    private void polycrosshair$drawWhenVanillaHides(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker, CallbackInfo ci) {
+    @WrapMethod(method = CROSSHAIR_METHOD)
+    private void polycrosshair$drawWhenVanillaHides(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker, Operation<Void> original) {
+        original.call(graphics, deltaTracker);
         if (polycrosshair$spriteReached) AttackIndicatorRenderer.INSTANCE.render(graphics);
         else CrosshairRenderer.INSTANCE.render(graphics, false);
         polycrosshair$spriteReached = false;
+        DebugCrosshairRenderer.INSTANCE.render(graphics, deltaTracker.getGameTimeDeltaPartialTick(true));
     }
 }
 //?} else {
 /*import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import com.llamalad7.mixinextras.sugar.Local;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GameGui;
 import net.minecraft.client.render.Window;
 import org.polyfrost.crosshair.render.CrosshairRenderer;
+import org.polyfrost.crosshair.render.DebugCrosshairRenderer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 
@@ -195,8 +206,15 @@ import org.spongepowered.asm.mixin.injection.At;
 public abstract class CrosshairMixin {
 
     @ModifyExpressionValue(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GameGui;hasCrosshair()Z"))
-    private boolean polycrosshair$replaceCrosshair(boolean original) {
-        return !CrosshairRenderer.INSTANCE.render(new Window(Minecraft.getInstance()), original) && original;
+    private boolean polycrosshair$replaceCrosshair(boolean original, @Local(argsOnly = true) float tickDelta) {
+        Window window = new Window(Minecraft.getInstance());
+        DebugCrosshairRenderer.INSTANCE.render(window, tickDelta);
+        return !CrosshairRenderer.INSTANCE.render(window, original) && original;
+    }
+
+    @ModifyExpressionValue(method = "hasCrosshair", at = @At(value = "FIELD", target = "Lnet/minecraft/client/options/GameOptions;debugEnabled:Z"))
+    private boolean polycrosshair$keepCrosshair(boolean debug) {
+        return debug && !DebugCrosshairRenderer.INSTANCE.customized();
     }
 }
 *///?}

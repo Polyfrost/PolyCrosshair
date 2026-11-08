@@ -37,6 +37,7 @@ Shortcuts in the editor:
 - Dynamic crosshair that spreads while you draw a bow or after you attack (attack not on 1.8.9)
 - Custom scale that ignores your GUI scale
 - Show it in third person and while spectating
+- Customize the debug crosshair
 
 ![Outline options](.github/images/outline.gif)
 

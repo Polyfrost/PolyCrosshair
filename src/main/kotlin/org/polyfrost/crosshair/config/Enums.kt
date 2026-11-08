@@ -32,6 +32,18 @@ enum class MirrorMode(val label: String) {
     }
 }
 
+enum class DebugDisplayMode(val label: String) {
+    NEVER("Never"),
+    OVERLAY("Overlay"),
+    ALWAYS("Always");
+
+    companion object {
+        val LABELS: Array<String> = entries.map { it.label }.toTypedArray()
+
+        fun of(ordinal: Int): DebugDisplayMode = entries.getOrElse(ordinal) { OVERLAY }
+    }
+}
+
 enum class TargetKind {
     NORMAL,
     FRIENDLY,
