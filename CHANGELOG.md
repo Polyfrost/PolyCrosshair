@@ -1,3 +1,3 @@
-# 2.0.7
-- Added Smooth Scaling option
-- Moved the Rotation option under the editor
+# 2.0.8
+- Properly center custom crosshairs
+- Added various debug crosshair customizations
