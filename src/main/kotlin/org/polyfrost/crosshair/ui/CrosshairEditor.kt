@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -35,9 +34,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -57,12 +56,10 @@ import androidx.compose.ui.input.pointer.isShiftPressed
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.polyfrost.crosshair.config.Circle
@@ -74,20 +71,35 @@ import org.polyfrost.crosshair.config.MirrorMode
 import org.polyfrost.crosshair.config.ModConfig
 import org.polyfrost.crosshair.config.VectorShape
 import org.polyfrost.oneconfig.api.config.v1.Property
+import org.polyfrost.oneconfig.api.notifications.v1.NotificationType
 import org.polyfrost.oneconfig.api.ui.v1.ExperimentalOneConfigUiApi
 import org.polyfrost.oneconfig.api.ui.v1.components.Chip
-import org.polyfrost.oneconfig.api.ui.v1.components.ColorPickerModel
 import org.polyfrost.oneconfig.api.ui.v1.components.ColorPickerPopup
+import org.polyfrost.oneconfig.api.ui.v1.components.ControlSize
+import org.polyfrost.oneconfig.api.ui.v1.components.ControlStyle
 import org.polyfrost.oneconfig.api.ui.v1.components.Icon
+import org.polyfrost.oneconfig.api.ui.v1.components.IconButton
+import org.polyfrost.oneconfig.api.ui.v1.components.MouseGesture
+import org.polyfrost.oneconfig.api.ui.v1.components.Placement
+import org.polyfrost.oneconfig.api.ui.v1.components.Shortcut
+import org.polyfrost.oneconfig.api.ui.v1.components.ShortcutGroup
+import org.polyfrost.oneconfig.api.ui.v1.components.ShortcutInput
+import org.polyfrost.oneconfig.api.ui.v1.components.ShortcutSheetPanel
+import org.polyfrost.oneconfig.api.ui.v1.components.StatusText
+import org.polyfrost.oneconfig.api.ui.v1.components.SurfaceKind
 import org.polyfrost.oneconfig.api.ui.v1.components.Text
+import org.polyfrost.oneconfig.api.ui.v1.components.TextButton
+import org.polyfrost.oneconfig.api.ui.v1.components.captureKeybinds
 import org.polyfrost.oneconfig.api.ui.v1.components.colorToHex
-import org.polyfrost.oneconfig.api.ui.v1.components.onClick
+import org.polyfrost.oneconfig.api.ui.v1.components.oneConfigClickable
+import org.polyfrost.oneconfig.api.ui.v1.components.rememberColorPickerModel
 import org.polyfrost.oneconfig.api.ui.v1.components.rememberInteractionSource
-import org.polyfrost.oneconfig.api.ui.v1.keybind.KeybindManager
+import org.polyfrost.oneconfig.api.ui.v1.components.rememberStatusMessage
+import org.polyfrost.oneconfig.api.ui.v1.components.themedSurface
+import org.polyfrost.oneconfig.api.ui.v1.components.transparencyCheckerboard
+import org.polyfrost.oneconfig.api.ui.v1.config.collectAsState
 import org.polyfrost.oneconfig.api.ui.v1.theme.OneConfigTheme
-import java.util.function.BooleanSupplier
 import java.util.function.Predicate
-import kotlinx.coroutines.delay
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
@@ -99,15 +111,6 @@ import kotlin.math.sqrt
 private val CANVAS_SIZE = 304.dp
 private val FAVORITE_SIZE = 96.dp
 private val FAVORITE_GAP = 8.dp
-private const val TRASH_ICON = "/assets/polycrosshair/trashcan.svg"
-
-object CanvasHover {
-    @JvmField
-    @Volatile
-    var owner: Any? = null
-}
-
-private const val DISABLED_ALPHA = 0.65f
 
 @Composable
 fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
@@ -136,18 +139,12 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
     var thickness by remember(prop) { mutableStateOf(1f) }
     var draft by remember(state) { mutableStateOf<VectorShape?>(null) }
     var guides by remember(prop) { mutableStateOf(true) }
-    val pen = ModConfig.penColor.observe() ?: -0x1
-    val favorites = remember(ModConfig.favorites.observe()) { ModConfig.favoriteList() }
+    val pen = ModConfig.penColor.collectAsState().value ?: -0x1
+    val favorites = remember(ModConfig.favorites.collectAsState().value) { ModConfig.favoriteList() }
     var helpOpen by remember(prop) { mutableStateOf(false) }
     @Suppress("DEPRECATION")
     val clipboard = LocalClipboardManager.current
-    var shareStatus by remember(prop) { mutableStateOf<String?>(null) }
-    LaunchedEffect(shareStatus) {
-        if (shareStatus != null) {
-            delay(SHARE_STATUS_MILLIS)
-            shareStatus = null
-        }
-    }
+    val shareStatus = rememberStatusMessage(SHARE_STATUS_MILLIS)
 
     val interaction = rememberInteractionSource()
     val hovered by interaction.collectIsHoveredAsState()
@@ -180,25 +177,15 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
         persist()
     }
 
+    val focusManager = LocalFocusManager.current
+    var canvasFocused by remember { mutableStateOf(false) }
     LaunchedEffect(hovered) {
-        if (hovered) {
-            CanvasHover.owner = prop
-            runCatching { focus.requestFocus() }
-        } else if (CanvasHover.owner === prop) {
-            CanvasHover.owner = null
-        }
-    }
-    DisposableEffect(prop) {
-        val capture = BooleanSupplier { CanvasHover.owner === prop }
-        KeybindManager.addInputCapture(capture)
-        onDispose {
-            KeybindManager.removeInputCapture(capture)
-            if (CanvasHover.owner === prop) CanvasHover.owner = null
-        }
+        if (hovered) runCatching { focus.requestFocus() }
+        else if (canvasFocused) focusManager.clearFocus()
     }
 
     Column(
-        Modifier.fillMaxWidth().hoverable(interaction).padding(vertical = 4.dp),
+        Modifier.fillMaxWidth().hoverable(interaction).captureKeybinds().padding(vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -223,6 +210,7 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
                             else -> false
                         }
                     }
+                    .onFocusChanged { canvasFocused = it.isFocused }
                     .focusRequester(focus)
                     .focusable()
                     .pointerInput(state, mirror, pen, tool, thickness) {
@@ -330,19 +318,15 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
                         }
                     }
             ) {
-                val light = theme.chipBackground
-                val dark = theme.componentBackground
                 val guideColor = OneConfigTheme.accent.copy(alpha = 0.35f)
                 val gridColor = theme.borderColor.copy(alpha = 0.25f)
 
-                Canvas(Modifier.size(CANVAS_SIZE)) {
+                Canvas(Modifier.size(CANVAS_SIZE).transparencyCheckerboard(CANVAS_SIZE / cells)) {
                     version
                     val cell = this.size.width / cells
 
                     for (y in 0 until cells) {
                         for (x in 0 until cells) {
-                            val checker = if ((x + y) % 2 == 0) dark else light
-                            drawRect(checker, Offset(x * cell, y * cell), Size(cell, cell))
                             val argb = state.pixels[x, y]
                             if (argb ushr 24 != 0) {
                                 drawRect(Color(argb), Offset(x * cell, y * cell), Size(cell, cell))
@@ -371,7 +355,7 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
                 }
 
                 if (helpOpen) {
-                    ShortcutOverlay(Modifier.align(Alignment.BottomStart).padding(8.dp))
+                    ShortcutSheetPanel(SHORTCUTS, Modifier.align(Alignment.BottomStart).padding(8.dp))
                 }
             }
 
@@ -390,27 +374,25 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
                     if (!state.isEmpty() && current !in favorites) ModConfig.setFavorites(favorites + current)
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    EditorButton(if (shareStatus == COPIED) COPIED else "Copy", Modifier.weight(1f)) {
+                    EditorButton("Copy", Modifier.weight(1f)) {
                         clipboard.setText(AnnotatedString(profile.export()))
-                        shareStatus = COPIED
+                        shareStatus.show(COPIED, NotificationType.SUCCESS)
                     }
-                    EditorButton(if (shareStatus == INVALID) INVALID else "Paste", Modifier.weight(1f)) {
+                    EditorButton("Paste", Modifier.weight(1f)) {
                         val code = clipboard.getText()?.text
-                        shareStatus = if (code != null && profile.import(code)) null else INVALID
+                        if (code != null && profile.import(code)) shareStatus.clear() else shareStatus.show(INVALID, NotificationType.ERROR)
                     }
                 }
                 Spacer(Modifier.weight(1f))
-                Box(
-                    Modifier
-                        .size(20.dp)
-                        .clip(CircleShape)
-                        .background(if (helpOpen) OneConfigTheme.accent else theme.popupBackground, CircleShape)
-                        .border(1.dp, theme.borderColor, CircleShape)
-                        .pointerHoverIcon(PointerIcon.Hand)
-                        .onClick(rememberInteractionSource()) { helpOpen = !helpOpen },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text("i", modifier = Modifier, color = if (helpOpen) theme.accentTextColor else theme.textColor, fontSize = 12.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(
+                        "info",
+                        contentDescription = "Keyboard shortcuts",
+                        onClick = { helpOpen = !helpOpen },
+                        size = ControlSize.Compact,
+                        selected = helpOpen,
+                    )
+                    StatusText(shareStatus, Modifier.weight(1f))
                 }
             }
 
@@ -418,7 +400,7 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
                 val perRow = ((maxWidth + FAVORITE_GAP) / (FAVORITE_SIZE + FAVORITE_GAP)).toInt().coerceAtLeast(1)
                 Column(verticalArrangement = Arrangement.spacedBy(FAVORITE_GAP)) {
                     if (favorites.isEmpty()) {
-                        Text("Saved crosshairs show up here.", modifier = Modifier, color = theme.textColorSecondary, fontSize = 12.sp)
+                        Text("Saved crosshairs show up here.", modifier = Modifier, color = theme.textColorSecondary, style = OneConfigTheme.typography.body.copy(fontSize = 12.sp))
                     }
                     favorites.chunked(perRow).forEach { row ->
                         Row(horizontalArrangement = Arrangement.spacedBy(FAVORITE_GAP)) {
@@ -438,38 +420,27 @@ fun CrosshairEditor(profile: CrosshairProfile, prop: Property<*>) {
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Tool", modifier = Modifier, color = theme.textColorSecondary, fontSize = 12.sp)
+            Text("Tool", modifier = Modifier, color = theme.textColorSecondary, style = OneConfigTheme.typography.body.copy(fontSize = 12.sp))
             Tool.entries.forEach { entry ->
-                Chip(entry.label, selected = tool == entry) { tool = entry }
+                Chip(entry.label, selected = tool == entry, onClick = { tool = entry })
             }
             if (tool != Tool.PEN) {
                 Spacer(Modifier.width(12.dp))
-                Text("Thickness", modifier = Modifier, color = theme.textColorSecondary, fontSize = 12.sp)
+                Text("Thickness", modifier = Modifier, color = theme.textColorSecondary, style = OneConfigTheme.typography.body.copy(fontSize = 12.sp))
                 SHAPE_THICKNESSES.forEach { value ->
                     val label = if (value % 1f == 0f) value.toInt().toString() else value.toString()
-                    Chip(label, selected = thickness == value) { thickness = value }
+                    Chip(label, selected = thickness == value, onClick = { thickness = value })
                 }
             }
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Mirror", modifier = Modifier, color = theme.textColorSecondary, fontSize = 12.sp)
+            Text("Mirror", modifier = Modifier, color = theme.textColorSecondary, style = OneConfigTheme.typography.body.copy(fontSize = 12.sp))
             MirrorMode.entries.forEach { mode ->
-                Chip(mode.label, selected = mirror == mode) { mirror = mode }
+                Chip(mode.label, selected = mirror == mode, onClick = { mirror = mode })
             }
         }
     }
-}
-
-@Composable
-private fun <T> Property<T>.observe(): T? {
-    var value by remember(this) { mutableStateOf(get()) }
-    DisposableEffect(this) {
-        val listener = Predicate<T> { value = it; false }
-        addCallback(listener)
-        onDispose { removeCallback(listener) }
-    }
-    return value
 }
 
 @Composable
@@ -486,8 +457,7 @@ private fun Favorite(entry: String, onLoad: () -> Unit, onRemove: () -> Unit) {
             .clip(theme.backgroundShape)
             .background(theme.componentBackground, theme.backgroundShape)
             .border(1.dp, if (hovered) OneConfigTheme.accent else theme.borderColor, theme.backgroundShape)
-            .pointerHoverIcon(PointerIcon.Hand)
-            .onClick(interaction) { onLoad() }
+            .oneConfigClickable("Load crosshair", onLoad, shape = theme.backgroundShape, indication = false, interactionSource = interaction)
     ) {
         Canvas(Modifier.fillMaxSize().padding(14.dp)) {
             val cell = size.width / pixels.size
@@ -499,53 +469,42 @@ private fun Favorite(entry: String, onLoad: () -> Unit, onRemove: () -> Unit) {
             }
             circles?.let { drawShapes(it.list, size.width / it.size) }
         }
-        Box(
-            Modifier
-                .align(Alignment.TopEnd)
-                .padding(4.dp)
-                .pointerHoverIcon(PointerIcon.Hand)
-                .onClick(rememberInteractionSource()) { onRemove() }
-                .padding(4.dp)
-        ) {
-            Icon(TRASH_ICON, color = theme.textColorSecondary, modifier = Modifier.size(14.dp))
-        }
+        IconButton(
+            "trash",
+            contentDescription = "Remove",
+            onClick = onRemove,
+            modifier = Modifier.align(Alignment.TopEnd).padding(2.dp),
+            size = ControlSize.Compact,
+            danger = true,
+        )
     }
 }
 
-@Composable
-private fun ShortcutOverlay(modifier: Modifier = Modifier) {
-    val theme = OneConfigTheme.current
-    Column(
-        modifier
-            .clip(theme.popupShape)
-            .background(theme.popupBackground, theme.popupShape)
-            .border(1.dp, theme.borderColor, theme.popupShape)
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        SHORTCUTS.forEach { (keys, what) ->
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(keys, modifier = Modifier, color = theme.textColor, fontSize = 12.sp)
-                Text(what, modifier = Modifier, color = theme.textColorSecondary, fontSize = 12.sp)
-            }
-        }
-    }
-}
+private val LEFT_CLICK = ShortcutInput.Mouse(MouseGesture.Click, "Left click")
+private val RIGHT_CLICK = ShortcutInput.Mouse(MouseGesture.Click, "Right click")
+private val DRAG = ShortcutInput.Mouse(MouseGesture.Drag, "Drag")
+private val SHIFT = ShortcutInput.Key("Shift")
+private val HOLD = ShortcutInput.Label("hold")
 
 private val SHORTCUTS = listOf(
-    "Left click" to "Draw a pixel",
-    "Right click" to "Erase a pixel",
-    "Delete" to "Clear the canvas",
-    "S" to "Toggle guides",
-    "Shift (hold)" to "Lock to one direction",
-    "Z" to "Undo",
-    "Y" to "Redo",
-    "W" to "Cycle mirror mode",
-    "C" to "Cycle tools",
-    "Circle: drag" to "Draw a circle from its center",
-    "Line: drag" to "Draw a line",
-    "Line: shift (hold)" to "Snap to 45°",
-    "Circle/Line: right click" to "Remove a shape",
+    ShortcutGroup(
+        null,
+        listOf(
+            Shortcut("Draw a pixel", listOf(LEFT_CLICK)),
+            Shortcut("Erase a pixel", listOf(RIGHT_CLICK)),
+            Shortcut("Clear the canvas", "Delete"),
+            Shortcut("Toggle guides", "S"),
+            Shortcut("Lock to one direction", listOf(SHIFT, HOLD)),
+            Shortcut("Undo", "Z"),
+            Shortcut("Redo", "Y"),
+            Shortcut("Cycle mirror mode", "W"),
+            Shortcut("Cycle tools", "C"),
+            Shortcut("Draw a circle from its center", listOf(ShortcutInput.Label("Circle"), DRAG)),
+            Shortcut("Draw a line", listOf(ShortcutInput.Label("Line"), DRAG)),
+            Shortcut("Snap to 45°", listOf(ShortcutInput.Label("Line"), SHIFT, HOLD)),
+            Shortcut("Remove a shape", listOf(ShortcutInput.Label("Circle/Line"), RIGHT_CLICK)),
+        ),
+    ),
 )
 
 private enum class Tool(val label: String) {
@@ -562,7 +521,7 @@ private const val SNAP_ANGLE = (PI / 4).toFloat()
 private const val FAVORITE_CIRCLES = "|"
 private const val SHARE_STATUS_MILLIS = 1500L
 private const val COPIED = "Copied!"
-private const val INVALID = "Invalid"
+private const val INVALID = "Invalid code"
 
 private fun favoriteOf(pixels: CrosshairPixels, circles: CrosshairCircles): String {
     val base64 = pixels.toBase64()
@@ -585,56 +544,44 @@ private fun DrawScope.drawShapes(shapes: List<VectorShape>, cell: Float) {
 @Composable
 private fun PenColor() {
     val theme = OneConfigTheme.current
-    val color = Color(ModConfig.penColor.observe() ?: -0x1)
-    val model = remember { ColorPickerModel(color, true) }
+    val color = Color(ModConfig.penColor.collectAsState().value ?: -0x1)
+    val model = rememberColorPickerModel(color, hasAlpha = true)
     var expanded by remember { mutableStateOf(false) }
     val content by animateColorAsState(if (color.luminance() > 0.6f) Color.Black else Color.White)
     Box {
         Row(
             Modifier
                 .fillMaxWidth()
-                .pointerHoverIcon(PointerIcon.Hand)
-                .onClick(rememberInteractionSource()) { expanded = !expanded }
-                .background(color, theme.sideBarNavigationEntryShape)
-                .border(1.dp, theme.borderColor, theme.sideBarNavigationEntryShape)
+                .oneConfigClickable("Pen color", { expanded = !expanded }, shape = theme.shapes.field, indication = false)
+                .themedSurface(SurfaceKind.Field, shape = theme.shapes.field)
+                .background(color, theme.shapes.field)
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon("paintbrush", color = content, modifier = Modifier.size(14.dp))
-            Text("#${colorToHex(color)}", modifier = Modifier, color = content, fontSize = 13.sp)
+            Icon("paintbrush", null, modifier = Modifier.size(14.dp), tint = content)
+            Text("#${colorToHex(color)}", modifier = Modifier, color = content, style = OneConfigTheme.typography.body.copy(fontSize = 13.sp))
         }
         if (expanded) {
-            Popup(
-                alignment = Alignment.TopEnd,
-                offset = IntOffset(0, PICKER_OFFSET),
-                onDismissRequest = { expanded = false },
-                properties = PopupProperties(focusable = true),
-            ) {
-                ColorPickerPopup(model, { ModConfig.penColor.set(it.toArgb()) }, { expanded = false }, false)
-            }
+            ColorPickerPopup(
+                model,
+                { ModConfig.penColor.set(it.toArgb()) },
+                { expanded = false },
+                placement = Placement.BelowEnd,
+            )
         }
     }
 }
 
-private const val PICKER_OFFSET = 44
-
 @Composable
 private fun EditorButton(text: String, modifier: Modifier = Modifier, enabled: Boolean = true, onClick: () -> Unit) {
-    val theme = OneConfigTheme.current
-    val interactionSource = rememberInteractionSource()
-    val isHovered by interactionSource.collectIsHoveredAsState()
-    val bgColor by animateColorAsState(if (isHovered && enabled) OneConfigTheme.accent.copy(alpha = 0.75f) else OneConfigTheme.accent)
-    Box(
-        modifier
-            .fillMaxWidth()
-            .alpha(if (enabled) 1f else DISABLED_ALPHA)
-            .pointerHoverIcon(PointerIcon.Hand)
-            .background(bgColor, theme.buttonShape)
-            .onClick(interactionSource, enabled) { onClick() }
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(text, modifier = Modifier, color = theme.accentTextColor, fontSize = 13.sp)
-    }
+    TextButton(
+        text,
+        onClick,
+        modifier,
+        style = ControlStyle.Primary,
+        size = ControlSize.Compact,
+        enabled = enabled,
+        fillWidth = true,
+    )
 }

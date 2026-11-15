@@ -3,6 +3,12 @@ package org.polyfrost.crosshair.config
 import org.polyfrost.compose.render.PolyColor
 import org.polyfrost.oneconfig.api.config.v1.Property
 import org.polyfrost.oneconfig.api.config.v1.Tree
+import org.polyfrost.oneconfig.api.config.v1.color
+import org.polyfrost.oneconfig.api.config.v1.dropdown
+import org.polyfrost.oneconfig.api.config.v1.enableToggle
+import org.polyfrost.oneconfig.api.config.v1.group
+import org.polyfrost.oneconfig.api.config.v1.slider
+import org.polyfrost.oneconfig.api.config.v1.switch
 
 class DebugCrosshair(root: Tree) {
 
@@ -11,6 +17,7 @@ class DebugCrosshair(root: Tree) {
         title = "Customize Debug Crosshair",
         description = "Replaces the vanilla debug crosshair, the axis cross shown on the debug screen, with this one.",
         category = CATEGORY,
+        default = false,
     )
 
     val displayMode: Property<Int> = root.dropdown(
@@ -18,8 +25,8 @@ class DebugCrosshair(root: Tree) {
         title = "Display Mode",
         description = "When to show the debug crosshair. Overlay shows it with the debug screen, Always shows it the whole time.",
         category = CATEGORY,
-        options = DebugDisplayMode.LABELS,
-        def = DebugDisplayMode.OVERLAY.ordinal,
+        options = DebugDisplayMode.LABELS.asList(),
+        default = DebugDisplayMode.OVERLAY.ordinal,
     )
 
     val hideCrosshair: Property<Boolean> = root.switch(
@@ -27,7 +34,7 @@ class DebugCrosshair(root: Tree) {
         title = "Hide Crosshair",
         description = "Hides the normal crosshair when the debug crosshair is visible.",
         category = CATEGORY,
-        def = true,
+        default = true,
     )
 
     val showInThirdPerson: Property<Boolean> = root.switch(
@@ -35,6 +42,7 @@ class DebugCrosshair(root: Tree) {
         title = "Show in Third Person",
         description = "Shows the debug crosshair in third person too.",
         category = CATEGORY,
+        default = false,
     )
 
     val perspective: Property<Boolean> = root.switch(
@@ -42,7 +50,7 @@ class DebugCrosshair(root: Tree) {
         title = "3D Perspective",
         description = "Draws the axes like vanilla: they grow with your GUI scale and window height, and axes pointing at you look longer. Turn this off to measure Length in screen pixels.",
         category = CATEGORY,
-        def = true,
+        default = true,
     )
 
     val axisWidth: Property<Float> = root.slider(
@@ -50,7 +58,7 @@ class DebugCrosshair(root: Tree) {
         title = "Axis Width",
         description = "How thick each axis is, in screen pixels.",
         category = CATEGORY,
-        min = 1f, max = 10f, def = 2f, step = 1f,
+        min = 1f, max = 10f, default = 2f, step = 1f,
     )
 
     val outlineWidth: Property<Float> = root.slider(
@@ -58,7 +66,7 @@ class DebugCrosshair(root: Tree) {
         title = "Axis Outline Width",
         description = "How thick each axis outline is, in screen pixels.",
         category = CATEGORY,
-        min = 1f, max = 20f, def = 4f, step = 1f,
+        min = 1f, max = 20f, default = 4f, step = 1f,
     )
 
     val xAxis = DebugAxis(root, "x", "X", PolyColor.rgba(255, 0, 0, 255))
@@ -70,38 +78,39 @@ class DebugCrosshair(root: Tree) {
 
 class DebugAxis(root: Tree, key: String, name: String, defaultColor: PolyColor) {
 
-    private val axis = root.accordion(
+    private val axis = root.group(
         id = "debug_crosshair_$key",
         title = "$name Axis",
         description = "Shows the $name axis.",
         category = CATEGORY,
-        def = true,
-    )
-    val enabled: Property<Boolean> = axis.second
-    val length: Property<Float> = axis.first.slider(
+        enableToggle = true,
+        enabledByDefault = true,
+    ) {}
+    val enabled: Property<Boolean> = axis.enableToggle!!
+    val length: Property<Float> = axis.slider(
         id = "length",
         title = "Length",
         description = "How long this axis is. With 3D Perspective on, 10 matches vanilla. With it off, this is in screen pixels.",
         category = CATEGORY,
-        min = 1f, max = 50f, def = 10f, step = 1f,
+        min = 1f, max = 50f, default = 10f, step = 1f,
     )
-    val color: Property<PolyColor> = axis.first.color(
+    val color: Property<PolyColor> = axis.color(
         id = "color",
         title = "Color",
         category = CATEGORY,
-        def = defaultColor,
+        default = defaultColor,
     )
-    val outline: Property<Boolean> = axis.first.switch(
+    val outline: Property<Boolean> = axis.switch(
         id = "outline",
         title = "Outline",
         category = CATEGORY,
-        def = true,
+        default = true,
     )
-    val outlineColor: Property<PolyColor> = axis.first.color(
+    val outlineColor: Property<PolyColor> = axis.color(
         id = "outline_color",
         title = "Outline Color",
         category = CATEGORY,
-        def = PolyColor.rgba(0, 0, 0, 255),
+        default = PolyColor.rgba(0, 0, 0, 255),
     )
 }
 

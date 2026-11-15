@@ -1,18 +1,29 @@
 package org.polyfrost.crosshair.config
 
-import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
-import com.google.gson.JsonPrimitive
 import org.polyfrost.compose.render.PolyColor
 import org.polyfrost.crosshair.ui.CrosshairEditor
+import org.polyfrost.oneconfig.api.config.v1.MetaKeys
+import org.polyfrost.oneconfig.api.config.v1.Properties
 import org.polyfrost.oneconfig.api.config.v1.Property
+import org.polyfrost.oneconfig.api.config.v1.ShareCodeResult
 import org.polyfrost.oneconfig.api.config.v1.Tree
 import org.polyfrost.oneconfig.api.config.v1.Visualizer
-import java.io.ByteArrayOutputStream
+import org.polyfrost.oneconfig.api.config.v1.applyShareCode
+import org.polyfrost.oneconfig.api.config.v1.color
+import org.polyfrost.oneconfig.api.config.v1.button
+import org.polyfrost.oneconfig.api.config.v1.dropdown
+import org.polyfrost.oneconfig.api.config.v1.enableToggle
+import org.polyfrost.oneconfig.api.config.v1.group
+import org.polyfrost.oneconfig.api.config.v1.hidden
+import org.polyfrost.oneconfig.api.config.v1.set
+import org.polyfrost.oneconfig.api.config.v1.slider
+import org.polyfrost.oneconfig.api.config.v1.switch
+import org.polyfrost.oneconfig.api.config.v1.toShareCode
 import java.util.Base64
+import java.util.function.Predicate
 import java.util.zip.GZIPInputStream
-import java.util.zip.GZIPOutputStream
 
 class CrosshairProfile(
     root: Tree,
@@ -33,7 +44,7 @@ class CrosshairProfile(
         title = "Use $category Crosshair",
         description = enabledDescription,
         category = category,
-        def = enabledDefault,
+        default = enabledDefault,
     )
 
     @Suppress("unused")
@@ -47,23 +58,21 @@ class CrosshairProfile(
         ) { copyFrom(source()) }
     }
 
-    val image: Property<String> = root.custom(
-        id = "${key}_image",
-        title = "\u00A0",
-        category = category,
-        def = defaultImage,
-        type = String::class.java,
-        visualizer = Visualizer { prop -> CrosshairEditor(this, prop) },
-    )
+    val image: Property<String> = Properties.simple("${key}_image", "Crosshair Editor", null, defaultImage, String::class.java).also {
+        it[MetaKeys.VISUALIZER] = Visualizer { prop -> CrosshairEditor(this, prop) }
+        it[MetaKeys.CATEGORY] = category
+        it[MetaKeys.HIDE_LABEL] = true
+        root.put(it)
+    }
 
-    val circles: Property<String> = root.hidden("${key}_circles", "", String::class.java)
+    val circles: Property<String> = root.hidden("${key}_circles", "")
 
     val rotation: Property<Float> = root.slider(
         id = "${key}_rotation",
         title = "Rotation",
         description = "Rotates the crosshair clockwise around its center.",
         category = category,
-        min = 0f, max = 360f, def = 0f, step = 1f, unit = "°",
+        min = 0f, max = 360f, default = 0f, step = 1f, unit = "°",
     )
 
     val offsetX: Property<Float>? = if (indicator) root.slider(
@@ -71,7 +80,7 @@ class CrosshairProfile(
         title = "Offset X",
         description = "How far right of the crosshair this is drawn, in crosshair pixels.",
         category = category,
-        min = -32f, max = 32f, def = 0f, step = 1f,
+        min = -32f, max = 32f, default = 0f, step = 1f,
     ) else null
 
     val offsetY: Property<Float>? = if (indicator) root.slider(
@@ -79,23 +88,24 @@ class CrosshairProfile(
         title = "Offset Y",
         description = "How far below the crosshair this is drawn, in crosshair pixels.",
         category = category,
-        min = -32f, max = 32f, def = 11f, step = 1f,
+        min = -32f, max = 32f, default = 11f, step = 1f,
     ) else null
 
-    private val orbit = if (indicator) root.accordion(
+    private val orbit = if (indicator) root.group(
         id = "${key}_orbit",
         title = "Follow Pitch",
         description = "Swings this around the right side of the crosshair as you look up and down: level puts it to the right, 30° down puts it above, 30° up puts it below. Replaces Offset X and Offset Y while on.",
         category = category,
-        def = true,
-    ) else null
-    val orbitEnabled: Property<Boolean>? = orbit?.second
-    val orbitRadius: Property<Float>? = orbit?.first?.slider(
+        enableToggle = true,
+        enabledByDefault = true,
+    ) {} else null
+    val orbitEnabled: Property<Boolean>? = orbit?.enableToggle
+    val orbitRadius: Property<Float>? = orbit?.slider(
         id = "radius",
         title = "Radius",
         description = "How far from the crosshair this circles, in crosshair pixels.",
         category = category,
-        min = 0f, max = 32f, def = 11f, step = 1f,
+        min = 0f, max = 32f, default = 11f, step = 1f,
     )
 
     val attackIndicatorGap: Property<Float>? = if (indicator) root.slider(
@@ -103,7 +113,7 @@ class CrosshairProfile(
         title = "Attack Indicator Gap",
         description = "When this overlaps the vanilla attack indicator, the indicator moves down to sit this far below it.",
         category = category,
-        min = -16f, max = 16f, def = -2f, step = 1f,
+        min = -16f, max = 16f, default = -2f, step = 1f,
     ) else null
 
     val gridSize: Property<Int> = root.dropdown(
@@ -111,8 +121,8 @@ class CrosshairProfile(
         title = "Grid Size",
         description = "The size of the drawing canvas, and how large the crosshair is on screen.",
         category = category,
-        options = GridSize.LABELS,
-        def = GridSize.ONE.ordinal,
+        options = GridSize.LABELS.asList(),
+        default = GridSize.ONE.ordinal,
     )
 
     val resizeStretch: Property<Boolean> = root.switch(
@@ -120,118 +130,129 @@ class CrosshairProfile(
         title = "Grid Resize Stretch",
         description = "Stretches the crosshair to fill the new canvas when the grid size changes. Turn this off to keep its size and re-center it.",
         category = category,
-        def = true,
+        default = true,
     )
 
-    private val outline = root.accordion(
+    private val outline = root.group(
         id = "${key}_outline",
         title = "Outline",
         description = "Draws a border around the crosshair.",
         category = category,
-    )
-    val outlineEnabled: Property<Boolean> = outline.second
-    val outlineThickness: Property<Float> = outline.first.slider(
+        enableToggle = true,
+        enabledByDefault = false,
+    ) {}
+    val outlineEnabled: Property<Boolean> = outline.enableToggle!!
+    val outlineThickness: Property<Float> = outline.slider(
         id = "thickness",
         title = "Outline Thickness",
         description = "How far the outline extends, in crosshair pixels.",
         category = category,
-        min = 0f, max = 1f, def = 0.5f, step = 0.01f,
+        min = 0f, max = 1f, default = 0.5f, step = 0.01f,
     )
-    val outlineColor: Property<PolyColor> = outline.first.color(
+    val outlineColor: Property<PolyColor> = outline.color(
         id = "color",
         title = "Outline Color",
         category = category,
-        def = PolyColor.rgba(0, 0, 0, 255),
+        default = PolyColor.rgba(0, 0, 0, 255),
     )
 
-    private val blending = root.accordion(
+    private val blending = root.group(
         id = "${key}_blending",
         title = "Vanilla Blending",
         description = "Inverts the colors behind the crosshair, like the vanilla one, so it shows up on any background.",
         category = category,
-        def = true,
-    )
-    val blendingEnabled: Property<Boolean> = blending.second
-    val blendingColor: Property<PolyColor> = blending.first.color(
+        enableToggle = true,
+        enabledByDefault = true,
+    ) {}
+    val blendingEnabled: Property<Boolean> = blending.enableToggle!!
+    val blendingColor: Property<PolyColor> = blending.color(
         id = "color",
         title = "Blending Color",
         category = category,
-        def = PolyColor.rgba(255, 255, 255, 255),
+        default = PolyColor.rgba(255, 255, 255, 255),
     )
 
-    private val health = root.accordion(
+    private val health = root.group(
         id = "${key}_health",
         title = "Health Color Shift",
         description = "Recolors the crosshair when your health is low.",
         category = category,
-    )
-    val healthEnabled: Property<Boolean> = health.second
-    val healthThreshold: Property<Float> = health.first.slider(
+        enableToggle = true,
+        enabledByDefault = false,
+    ) {}
+    val healthEnabled: Property<Boolean> = health.enableToggle!!
+    val healthThreshold: Property<Float> = health.slider(
         id = "threshold",
         title = "Health Threshold",
         description = "The health at or below which the crosshair changes color. 20 is full health.",
         category = category,
-        min = 1f, max = 20f, def = 6f, step = 1f,
+        min = 1f, max = 20f, default = 6f, step = 1f,
     )
-    val healthColor: Property<PolyColor> = health.first.color(
+    val healthColor: Property<PolyColor> = health.color(
         id = "color",
         title = "Color",
         category = category,
-        def = PolyColor.rgba(255, 60, 60, 255),
+        default = PolyColor.rgba(255, 60, 60, 255),
     )
 
-    private val bow = if (indicator) null else root.accordion(
+    private val bow = if (indicator) null else root.group(
         id = "${key}_bow",
         title = "Dynamic Bow",
         description = "Spreads the crosshair apart when you start drawing a bow and closes it as the shot charges.",
         category = category,
-    )
-    val bowEnabled: Property<Boolean>? = bow?.second
-    val bowScale: Property<Float>? = bow?.first?.slider(
+        enableToggle = true,
+        enabledByDefault = false,
+    ) {}
+    val bowEnabled: Property<Boolean>? = bow?.enableToggle
+    val bowScale: Property<Float>? = bow?.slider(
         id = "animation_scale",
         title = "Animation Scale",
         description = "How far the crosshair spreads apart.",
         category = category,
-        min = 1f, max = 10f, def = 3f, step = 0.01f,
+        min = 1f, max = 10f, default = 3f, step = 0.01f,
     )
 
     //? if >=1.21 {
-    private val attack = if (indicator) null else root.accordion(
+    private val attack = if (indicator) null else root.group(
         id = "${key}_attack",
         title = "Dynamic Attack",
         description = "Spreads the crosshair apart after you attack and closes it as the cooldown recovers.",
         category = category,
-    )
-    val attackEnabled: Property<Boolean>? = attack?.second
-    val attackScale: Property<Float>? = attack?.first?.slider(
+        enableToggle = true,
+        enabledByDefault = false,
+    ) {}
+    val attackEnabled: Property<Boolean>? = attack?.enableToggle
+    val attackScale: Property<Float>? = attack?.slider(
         id = "animation_scale",
         title = "Animation Scale",
         description = "How far the crosshair spreads apart.",
         category = category,
-        min = 1f, max = 10f, def = 3f, step = 0.01f,
+        min = 1f, max = 10f, default = 3f, step = 0.01f,
     )
     //?}
 
-    private val scale = root.accordion(
+    private val scale = root.group(
         id = "${key}_scale",
         title = "Use Custom Scale",
         description = "Draws the crosshair at the scale you pick here, whatever the game's GUI scale is.",
         category = category,
-    )
-    val customScaleEnabled: Property<Boolean> = scale.second
-    val customScale: Property<Float> = scale.first.slider(
+        enableToggle = true,
+        enabledByDefault = false,
+    ) {}
+    val customScaleEnabled: Property<Boolean> = scale.enableToggle!!
+    val customScale: Property<Float> = scale.slider(
         id = "scale",
         title = "Scale",
         description = "The GUI scale to draw the crosshair at. 2 matches the Normal GUI scale.",
         category = category,
-        min = 0.5f, max = 6f, def = 2f, step = 0.5f,
+        min = 0.5f, max = 6f, default = 2f, step = 0.5f,
     )
-    val smoothScale: Property<Boolean> = scale.first.switch(
+    val smoothScale: Property<Boolean> = scale.switch(
         id = "smooth",
         title = "Smooth Scaling",
         description = "Draws the crosshair at exactly the scale you pick. Turn this off to round its size to whole GUI pixels.",
         category = category,
-        def = false,
+        default = false,
     )
 
     val showInThirdPerson: Property<Boolean> = root.switch(
@@ -240,9 +261,9 @@ class CrosshairProfile(
         description = "Shows the crosshair in third person too.",
         category = category,
         //? if >=1.21 {
-        def = false,
+        default = false,
         //?} else {
-        /*def = true,
+        /*default = true,
         *///?}
     )
 
@@ -251,7 +272,7 @@ class CrosshairProfile(
         title = "Always Visible in Spectator",
         description = "Shows the crosshair the whole time you're spectating. Vanilla only shows it when you look at something you can interact with.",
         category = category,
-        def = false,
+        default = false,
     )
 
     val grid: GridSize get() = GridSize.of(gridSize.get() ?: GridSize.ONE.ordinal)
@@ -310,27 +331,27 @@ class CrosshairProfile(
         ModConfig.save()
     }
 
-    fun export(): String {
-        val json = JsonObject()
+    private val shareTree: Tree = Tree.tree("${key}_share").also { tree ->
         for ((name, property) in shared) {
-            when (val value = property.get()) {
-                is Boolean -> json.addProperty(name, value)
-                is Number -> json.addProperty(name, value)
-                is String -> json.addProperty(name, value)
-                is PolyColor -> json.add(name, JsonArray().apply {
-                    add(JsonPrimitive(value.rawArgb))
-                    add(JsonPrimitive(value.chroma))
-                    add(JsonPrimitive(value.chromaSpeed))
-                })
-            }
+            tree.put(if (property === image) image.alias(name) { CrosshairPixels.fromBase64(it.orEmpty()) != null } else property.alias(name))
         }
-        val bytes = ByteArrayOutputStream()
-        GZIPOutputStream(bytes).use { it.write(json.toString().toByteArray(Charsets.UTF_8)) }
-        return SHARE_PREFIX + Base64.getEncoder().encodeToString(bytes.toByteArray())
     }
 
+    fun export(): String = shareTree.toShareCode(SHARE_PREFIX)
+
     fun import(code: String): Boolean {
-        if (code.trim().startsWith(LUNAR_PREFIX)) return importLunar(code)
+        val trimmed = code.trim()
+        if (trimmed.startsWith(LUNAR_PREFIX)) return importLunar(trimmed)
+        if (trimmed.startsWith(LEGACY_SHARE_PREFIX)) return importLegacy(trimmed)
+        val checked = shareTree.applyShareCode(trimmed, SHARE_PREFIX) { it.id == "image" }
+        if (checked !is ShareCodeResult.Success || "image" !in checked.applied) return false
+        shareTree.applyShareCode(trimmed, SHARE_PREFIX)
+        revision++
+        ModConfig.save()
+        return true
+    }
+
+    private fun importLegacy(code: String): Boolean {
         val json = decodeShare(code) ?: return false
         val image = runCatching { json.get("image")?.asString }.getOrNull() ?: return false
         if (CrosshairPixels.fromBase64(image) == null) return false
@@ -362,7 +383,8 @@ class CrosshairProfile(
     }
 }
 
-private const val SHARE_PREFIX = "PolyCrosshair-"
+private const val SHARE_PREFIX = "PolyCrosshair2-"
+private const val LEGACY_SHARE_PREFIX = "PolyCrosshair-"
 private const val LUNAR_PREFIX = "LCCH-"
 
 @Suppress("UNCHECKED_CAST")
@@ -370,9 +392,16 @@ private fun Property<*>.setAny(value: Any?) {
     (this as Property<Any?>).set(value)
 }
 
+private fun <T> Property<T>.alias(name: String, accept: (T?) -> Boolean = { true }): Property<T> {
+    @Suppress("UNCHECKED_CAST")
+    val alias = Properties.functional({ get() as T }, { if (accept(it)) set(it) }, name, null, null, type as Class<T>)
+    alias.addCallback(Predicate<T> { !accept(it) })
+    return alias
+}
+
 @Suppress("DEPRECATION")
 private fun decodeShare(code: String): JsonObject? = runCatching {
-    val bytes = Base64.getDecoder().decode(code.trim().removePrefix(SHARE_PREFIX))
+    val bytes = Base64.getDecoder().decode(code.trim().removePrefix(LEGACY_SHARE_PREFIX))
     val text = GZIPInputStream(bytes.inputStream()).use { String(it.readBytes(), Charsets.UTF_8) }
     JsonParser().parse(text).asJsonObject
 }.getOrNull()

@@ -1,14 +1,19 @@
+@file:OptIn(ExperimentalOneConfigUiApi::class)
+
 package org.polyfrost.crosshair.config
 
 import org.polyfrost.oneconfig.api.config.v1.KtConfig
 import org.polyfrost.oneconfig.api.config.v1.Node
 import org.polyfrost.oneconfig.api.config.v1.Property
 import org.polyfrost.oneconfig.api.config.v1.Tree
-import org.polyfrost.oneconfig.api.toggle.v1.ModToggle
+import org.polyfrost.oneconfig.api.config.v1.dependsOn
+import org.polyfrost.oneconfig.api.config.v1.disableAllUnless
+import org.polyfrost.oneconfig.api.config.v1.disabledWhen
+import org.polyfrost.oneconfig.api.config.v1.enableToggle
+import org.polyfrost.oneconfig.api.config.v1.hidden
+import org.polyfrost.oneconfig.api.ui.v1.ExperimentalOneConfigUiApi
 import org.polyfrost.oneconfig.api.ui.v1.ModToggles
 import org.polyfrost.crosshair.Compat
-import java.util.function.Predicate
-import java.util.function.Supplier
 
 object ModConfig : KtConfig(
     "polycrosshair.json",
@@ -54,9 +59,9 @@ object ModConfig : KtConfig(
 
     val debugCrosshair = DebugCrosshair(root)
 
-    val penColor: Property<Int> = root.hidden("pen_color", -0x1, Int::class.java)
+    val penColor: Property<Int> = root.hidden("pen_color", -0x1)
 
-    val favorites: Property<String> = root.hidden("favorites", "", String::class.java)
+    val favorites: Property<String> = root.hidden("favorites", "")
 
     fun favoriteList(): List<String> = favorites.get().orEmpty().split(FAVORITE_SEPARATOR).filter { it.isNotEmpty() }
 
@@ -64,12 +69,6 @@ object ModConfig : KtConfig(
         favorites.set(list.joinToString(FAVORITE_SEPARATOR))
         save()
     }
-
-    //? if >=1.21 {
-    private val elytraOptions: List<Property<*>> = options(elytra.key)
-
-    fun refreshElytraOptions() = elytraOptions.forEach { it.revaluateDisplay() }
-    //?}
 
     init {
         addAliases(*arrayOf("crosshair"))
@@ -80,45 +79,40 @@ object ModConfig : KtConfig(
         /*val profiles = listOf(normal, friendly, enemy)
         *///?}
         for (profile in profiles) {
-            options(profile.key).forEach { if (it !== profile.enabled) it.disableWhen(profile.enabled, false) }
+            options(profile.key).forEach { if (it !== profile.enabled) it.dependsOn(profile.enabled) }
             profile.orbitEnabled?.let { orbit ->
-                profile.offsetX?.disableWhen(orbit, true)
-                profile.offsetY?.disableWhen(orbit, true)
+                profile.offsetX?.dependsOn(orbit, expected = false)
+                profile.offsetY?.dependsOn(orbit, expected = false)
             }
         }
 
-        options("vanilla").forEach { if (it !== vanilla.enabled) it.disableWhen(vanilla.enabled, false) }
-        vanilla.color.disableWhen(vanilla.blendingEnabled, true)
+        options("vanilla").forEach { if (it !== vanilla.enabled) it.dependsOn(vanilla.enabled) }
+        vanilla.color.dependsOn(vanilla.blendingEnabled, expected = false)
 
         //? if >=1.21 {
-        options("attack_indicator").forEach { if (it !== attackIndicator.enabled) it.disableWhen(attackIndicator.enabled, false) }
-        attackIndicator.color.disableWhen(attackIndicator.blendingEnabled, true)
-        attackIndicator.color.disableWhen(attackIndicator.chargeColorsEnabled, true)
+        options("attack_indicator").forEach { if (it !== attackIndicator.enabled) it.dependsOn(attackIndicator.enabled) }
+        attackIndicator.color.dependsOn(attackIndicator.blendingEnabled, expected = false)
+        attackIndicator.color.dependsOn(attackIndicator.chargeColorsEnabled, expected = false)
         //?}
 
-        options("debug_crosshair").forEach { if (it !== debugCrosshair.enabled) it.disableWhen(debugCrosshair.enabled, false) }
+        options("debug_crosshair").forEach { if (it !== debugCrosshair.enabled) it.dependsOn(debugCrosshair.enabled) }
         for (axis in listOf(debugCrosshair.xAxis, debugCrosshair.yAxis, debugCrosshair.zAxis)) {
-            axis.outlineColor.disableWhen(axis.outline, false)
+            axis.outlineColor.dependsOn(axis.outline)
         }
 
-        for (accordion in root.map.values.filterIsInstance<Tree>()) {
-            @Suppress("UNCHECKED_CAST")
-            val head = accordion.map["enabled"] as? Property<Boolean> ?: continue
-            accordion.props().forEach { if (it !== head) it.disableWhen(head, false) }
+        for (group in root.map.values.filterIsInstance<Tree>()) {
+            if (group.enableToggle != null) group.disableAllUnless("enabled")
         }
 
         if (Compat.forcedOff) {
-            ModToggles.register("polycrosshair", object : ModToggle {
-                override fun isEnabled() = false
-                override fun setEnabled(enabled: Boolean) {}
-            })
+            ModToggles.registerReadOnly("polycrosshair", { false }, { Compat.forcedOffReason })
             root.getProp("enabled").description = Compat.forcedOffReason
-            root.props().forEach { it.lockWhen { true } }
+            root.props().forEach { it.disabledWhen { true } }
         }
         //? if >=1.21 {
         if (Compat.addonsInstalled) {
             elytra.enabled.description = "Turned off while Crosshair Addons' elytra indicator is on."
-            elytraOptions.forEach { it.lockWhen { Compat.addonsElytra } }
+            options(elytra.key).forEach { it.disabledWhen(pollEveryTicks = ADDONS_POLL_TICKS) { Compat.addonsElytra } }
         }
         //?}
     }
@@ -130,16 +124,6 @@ object ModConfig : KtConfig(
         is Property<*> -> listOf(this)
         is Tree -> map.values.flatMap { it.props() }
         else -> emptyList()
-    }
-
-    private fun Property<*>.disableWhen(toggle: Property<Boolean>, value: Boolean) {
-        toggle.addCallback { revaluateDisplay(); false }
-        lockWhen { toggle.get() == value }
-    }
-
-    private fun Property<*>.lockWhen(locked: () -> Boolean) {
-        addDisplayCondition(Supplier { if (locked()) Property.Display.DISABLED else Property.Display.SHOWN })
-        revaluateDisplay()
     }
 
     fun profile(kind: TargetKind): CrosshairProfile? {
@@ -154,3 +138,4 @@ object ModConfig : KtConfig(
 
 private const val GENERAL = "General"
 private const val FAVORITE_SEPARATOR = ","
+private const val ADDONS_POLL_TICKS = 10

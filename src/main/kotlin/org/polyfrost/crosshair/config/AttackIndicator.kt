@@ -4,6 +4,11 @@ package org.polyfrost.crosshair.config
 import org.polyfrost.compose.render.PolyColor
 import org.polyfrost.oneconfig.api.config.v1.Property
 import org.polyfrost.oneconfig.api.config.v1.Tree
+import org.polyfrost.oneconfig.api.config.v1.color
+import org.polyfrost.oneconfig.api.config.v1.enableToggle
+import org.polyfrost.oneconfig.api.config.v1.group
+import org.polyfrost.oneconfig.api.config.v1.slider
+import org.polyfrost.oneconfig.api.config.v1.switch
 
 class AttackIndicator(root: Tree) {
 
@@ -12,21 +17,23 @@ class AttackIndicator(root: Tree) {
         title = "Customize Attack Indicator",
         description = "Replaces the vanilla crosshair attack indicator with this one. The attack cooldown still follows the vanilla Attack Indicator setting.",
         category = CATEGORY,
+        default = false,
     )
 
-    private val blending = root.accordion(
+    private val blending = root.group(
         id = "attack_indicator_blending",
         title = "Vanilla Blending",
         description = "Inverts the colors behind the indicator so it shows up on any background.",
         category = CATEGORY,
-        def = true,
-    )
-    val blendingEnabled: Property<Boolean> = blending.second
-    val blendingColor: Property<PolyColor> = blending.first.color(
+        enableToggle = true,
+        enabledByDefault = true,
+    ) {}
+    val blendingEnabled: Property<Boolean> = blending.enableToggle!!
+    val blendingColor: Property<PolyColor> = blending.color(
         id = "color",
         title = "Blending Color",
         category = CATEGORY,
-        def = PolyColor.rgba(255, 255, 255, 255),
+        default = PolyColor.rgba(255, 255, 255, 255),
     )
 
     val color: Property<PolyColor> = root.color(
@@ -34,32 +41,35 @@ class AttackIndicator(root: Tree) {
         title = "Color",
         description = "The indicator's color while Vanilla Blending and Charge Colors are off.",
         category = CATEGORY,
-        def = PolyColor.rgba(255, 255, 255, 255),
+        default = PolyColor.rgba(255, 255, 255, 255),
     )
 
-    private val chargeColors = root.accordion(
+    private val chargeColors = root.group(
         id = "attack_indicator_charge_colors",
         title = "Charge Colors",
         description = "Colors the indicator one way while it fills up and another once it's full.",
         category = CATEGORY,
-    )
-    val chargeColorsEnabled: Property<Boolean> = chargeColors.second
-    val chargingColor: Property<PolyColor> = chargeColors.first.color(
+        enableToggle = true,
+        enabledByDefault = false,
+    ) {}
+    val chargeColorsEnabled: Property<Boolean> = chargeColors.enableToggle!!
+    val chargingColor: Property<PolyColor> = chargeColors.color(
         id = "charging",
         title = "Charging Color",
         category = CATEGORY,
-        def = PolyColor.rgba(255, 85, 85, 255),
+        default = PolyColor.rgba(255, 85, 85, 255),
     )
-    val readyColor: Property<PolyColor> = chargeColors.first.color(
+    val readyColor: Property<PolyColor> = chargeColors.color(
         id = "ready",
         title = "Ready Color",
         category = CATEGORY,
-        def = PolyColor.rgba(85, 255, 85, 255),
+        default = PolyColor.rgba(85, 255, 85, 255),
     )
-    val chargeColorsWithBlending: Property<Boolean> = chargeColors.first.switch(
+    val chargeColorsWithBlending: Property<Boolean> = chargeColors.switch(
         "blending", "Use With Vanilla Blending",
         description = "Uses these colors instead of the Blending Color while Vanilla Blending is on.",
         category = CATEGORY,
+        default = false,
     )
 
     val offsetX: Property<Float> = root.slider(
@@ -67,7 +77,7 @@ class AttackIndicator(root: Tree) {
         title = "Offset X",
         description = "How far right of its vanilla spot the indicator is drawn, in GUI pixels.",
         category = CATEGORY,
-        min = -64f, max = 64f, def = 0f, step = 1f,
+        min = -64f, max = 64f, default = 0f, step = 1f,
     )
 
     val offsetY: Property<Float> = root.slider(
@@ -75,52 +85,56 @@ class AttackIndicator(root: Tree) {
         title = "Offset Y",
         description = "How far below its vanilla spot the indicator is drawn, in GUI pixels.",
         category = CATEGORY,
-        min = -64f, max = 64f, def = 0f, step = 1f,
+        min = -64f, max = 64f, default = 0f, step = 1f,
     )
 
-    private val scale = root.accordion(
+    private val scale = root.group(
         id = "attack_indicator_scale",
         title = "Use Custom Scale",
         description = "Draws the indicator at the scale you pick here, whatever the game's GUI scale is.",
         category = CATEGORY,
-    )
-    val customScaleEnabled: Property<Boolean> = scale.second
-    val customScale: Property<Float> = scale.first.slider(
+        enableToggle = true,
+        enabledByDefault = false,
+    ) {}
+    val customScaleEnabled: Property<Boolean> = scale.enableToggle!!
+    val customScale: Property<Float> = scale.slider(
         id = "scale",
         title = "Scale",
         description = "The GUI scale to draw the indicator at. 2 matches the Normal GUI scale.",
         category = CATEGORY,
-        min = 0.5f, max = 6f, def = 2f, step = 0.5f,
+        min = 0.5f, max = 6f, default = 2f, step = 0.5f,
     )
 
-    private val attack = root.accordion(
+    private val attack = root.group(
         id = "attack_indicator_attack",
         title = "Attack Cooldown",
         description = "Shows the attack cooldown for the item types picked here.",
         category = CATEGORY,
-        def = true,
-    )
-    val attackEnabled: Property<Boolean> = attack.second
-    val attackSwords: Property<Boolean> = attack.first.switch("swords", "Swords", category = CATEGORY, def = true)
-    val attackAxes: Property<Boolean> = attack.first.switch("axes", "Axes", category = CATEGORY, def = true)
-    val attackTools: Property<Boolean> = attack.first.switch(
+        enableToggle = true,
+        enabledByDefault = true,
+    ) {}
+    val attackEnabled: Property<Boolean> = attack.enableToggle!!
+    val attackSwords: Property<Boolean> = attack.switch("swords", "Swords", category = CATEGORY, default = true)
+    val attackAxes: Property<Boolean> = attack.switch("axes", "Axes", category = CATEGORY, default = true)
+    val attackTools: Property<Boolean> = attack.switch(
         "tools", "Tools",
         description = "Pickaxes, shovels and hoes.",
-        category = CATEGORY, def = true,
+        category = CATEGORY, default = true,
     )
-    val attackHeavy: Property<Boolean> = attack.first.switch(
+    val attackHeavy: Property<Boolean> = attack.switch(
         "heavy", "Tridents, Maces and Spears",
-        category = CATEGORY, def = true,
+        category = CATEGORY, default = true,
     )
-    val attackOther: Property<Boolean> = attack.first.switch(
+    val attackOther: Property<Boolean> = attack.switch(
         "other", "Other Items",
         description = "Everything else, including an empty hand.",
-        category = CATEGORY, def = true,
+        category = CATEGORY, default = true,
     )
-    val attackAlwaysReady: Property<Boolean> = attack.first.switch(
+    val attackAlwaysReady: Property<Boolean> = attack.switch(
         "always_ready", "Always Show When Ready",
         description = "Keeps the full indicator on screen once you can attack again, on every item and whether or not you're aiming at a mob.",
         category = CATEGORY,
+        default = false,
     )
 
     val sleep: Property<Boolean> = root.switch(
@@ -128,6 +142,7 @@ class AttackIndicator(root: Tree) {
         title = "Sleep Progress",
         description = "Fills up while you fall asleep in a bed.",
         category = CATEGORY,
+        default = false,
     )
 
     val blockBreaking: Property<Boolean> = root.switch(
@@ -135,6 +150,7 @@ class AttackIndicator(root: Tree) {
         title = "Block Breaking",
         description = "Fills up as the block you're mining breaks.",
         category = CATEGORY,
+        default = false,
     )
 
     val itemCooldown: Property<Boolean> = root.switch(
@@ -142,6 +158,7 @@ class AttackIndicator(root: Tree) {
         title = "Item Cooldown",
         description = "Shows the cooldown of held items like ender pearls, chorus fruit and wind charges.",
         category = CATEGORY,
+        default = false,
     )
 
     val bowCharge: Property<Boolean> = root.switch(
@@ -149,6 +166,7 @@ class AttackIndicator(root: Tree) {
         title = "Bow Charge",
         description = "Fills up as you draw a bow or load a crossbow.",
         category = CATEGORY,
+        default = false,
     )
 
     val shieldCooldown: Property<Boolean> = root.switch(
@@ -156,6 +174,7 @@ class AttackIndicator(root: Tree) {
         title = "Shield Cooldown",
         description = "Shows how long your shield stays disabled after an axe hit.",
         category = CATEGORY,
+        default = false,
     )
 
     val consumables: Property<Boolean> = root.switch(
@@ -163,6 +182,7 @@ class AttackIndicator(root: Tree) {
         title = "Consumables",
         description = "Fills up while you eat or drink.",
         category = CATEGORY,
+        default = false,
     )
 
     val storage: Property<Boolean> = root.switch(
@@ -170,6 +190,7 @@ class AttackIndicator(root: Tree) {
         title = "Storage Capacity",
         description = "Shows how full the bundle or shulker box you're holding is.",
         category = CATEGORY,
+        default = false,
     )
 }
 
