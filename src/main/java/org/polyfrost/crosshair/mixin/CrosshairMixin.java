@@ -193,7 +193,8 @@ public abstract class CrosshairMixin {
 }
 //?} else {
 /*import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
-import com.llamalad7.mixinextras.sugar.Local;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GameGui;
 import net.minecraft.client.render.Window;
@@ -205,10 +206,12 @@ import org.spongepowered.asm.mixin.injection.At;
 @Mixin(GameGui.class)
 public abstract class CrosshairMixin {
 
-    @ModifyExpressionValue(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GameGui;hasCrosshair()Z"))
-    private boolean polycrosshair$replaceCrosshair(boolean original, @Local(argsOnly = true) float tickDelta) {
-        Window window = new Window(Minecraft.getInstance());
-        DebugCrosshairRenderer.INSTANCE.render(window, tickDelta);
+    @WrapOperation(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GameGui;hasCrosshair()Z"))
+    private boolean polycrosshair$replaceCrosshair(GameGui gui, Operation<Boolean> operation) {
+        boolean original = operation.call(gui);
+        Minecraft minecraft = Minecraft.getInstance();
+        Window window = new Window(minecraft);
+        DebugCrosshairRenderer.INSTANCE.render(window, ((MinecraftAccessor) minecraft).getTimer().partialTick);
         return !CrosshairRenderer.INSTANCE.render(window, original) && original;
     }
 
