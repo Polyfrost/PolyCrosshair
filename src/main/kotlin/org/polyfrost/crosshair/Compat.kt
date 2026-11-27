@@ -19,7 +19,8 @@ object Compat {
     private val addonsElytraFlags: List<Field>? =
         if (FabricLoader.getInstance().isModLoaded("crosshairaddons")) {
             runCatching {
-                val config = Class.forName("walksy.crosshairaddons.config.Config")
+                val config = ADDONS_CONFIG_CLASSES.firstNotNullOfOrNull { runCatching { Class.forName(it) }.getOrNull() }
+                    ?: throw ClassNotFoundException(ADDONS_CONFIG_CLASSES.joinToString())
                 listOf("modEnabled", "elytraAddonEnabled").map(config::getField)
             }.onFailure { PolyCrosshair.LOGGER.warn("Couldn't read Crosshair Addons' config", it) }.getOrNull()
         } else {
@@ -64,3 +65,4 @@ object Compat {
 
 private const val FORCED_OFF_NOTICE = "polycrosshair:forced-off"
 private const val REPLACED_NOTICE = "polycrosshair:replaced"
+private val ADDONS_CONFIG_CLASSES = listOf("walksy.crosshairaddons.config.CrosshairAddonsConfig", "walksy.crosshairaddons.config.Config")
