@@ -4,6 +4,7 @@ package org.polyfrost.crosshair
 
 import net.fabricmc.loader.api.FabricLoader
 import org.polyfrost.crosshair.config.ModConfig
+import org.polyfrost.crosshair.render.CrosshairRenderer
 import org.polyfrost.oneconfig.api.notifications.v1.NotificationType
 import org.polyfrost.oneconfig.api.notifications.v1.Notifications
 import org.polyfrost.oneconfig.api.ui.v1.ExperimentalOneConfigUiApi
@@ -16,16 +17,20 @@ object Compat {
 
     private val replaced = installed("centered-crosshair" to "Centered Crosshair", "crosshairtweaks" to "Crosshair Tweaks", "entitycrosshair" to "Entity Crosshair")
 
-    private val addonsElytraFlags: List<Field>? =
+    private val addonsConfig: Class<*>? =
         if (FabricLoader.getInstance().isModLoaded("crosshairaddons")) {
-            runCatching {
-                val config = ADDONS_CONFIG_CLASSES.firstNotNullOfOrNull { runCatching { Class.forName(it) }.getOrNull() }
-                    ?: throw ClassNotFoundException(ADDONS_CONFIG_CLASSES.joinToString())
-                listOf("modEnabled", "elytraAddonEnabled").map(config::getField)
-            }.onFailure { PolyCrosshair.LOGGER.warn("Couldn't read Crosshair Addons' config", it) }.getOrNull()
+            ADDONS_CONFIG_CLASSES.firstNotNullOfOrNull { runCatching { Class.forName(it) }.getOrNull() }
+                .also { if (it == null) PolyCrosshair.LOGGER.warn("Couldn't find Crosshair Addons' config in {}", ADDONS_CONFIG_CLASSES) }
         } else {
             null
         }
+
+    private val addonsElytraFlags: List<Field>? = addonsConfig?.let { config ->
+        runCatching { listOf("modEnabled", "elytraAddonEnabled").map(config::getField) }
+            .onFailure { PolyCrosshair.LOGGER.warn("Couldn't read Crosshair Addons' config", it) }.getOrNull()
+    }
+
+    private val addonsThirdPerson: Field? = addonsConfig?.let { runCatching { it.getField("showInThirdPerson") }.getOrNull() }
 
     @JvmField
     val forcedOff = conflicting.isNotEmpty()
@@ -49,7 +54,9 @@ object Compat {
 
     val addonsInstalled = addonsElytraFlags != null
 
-    val addonsElytra: Boolean get() = addonsElytraFlags?.all { it.getBoolean(null) } == true
+    val addonsElytra: Boolean
+        get() = addonsElytraFlags?.all { it.getBoolean(null) } == true &&
+            (CrosshairRenderer.firstPerson() || addonsThirdPerson?.getBoolean(null) == true)
 
     fun tick() {
         if (forcedOff) {
